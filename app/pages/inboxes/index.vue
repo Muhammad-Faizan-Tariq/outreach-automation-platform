@@ -2,52 +2,29 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Inbox } from '~/composables/useInboxes'
 
-const route = useRoute()
-const toast = useToast()
-const { inboxes, loading, connectInbox, fetchInboxes } = useInboxes()
+const MOCK_INBOXES: Inbox[] = [
+  { id: '1', email: 'outreach1@dxbpropvault.com', display_name: 'DXB PropVault Outreach 1', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 94.5, daily_send_limit: 50, current_day_sent: 42, created_at: '2025-01-10T10:00:00Z' },
+  { id: '2', email: 'outreach2@dxbpropvault.com', display_name: 'DXB PropVault Outreach 2', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 88.2, daily_send_limit: 50, current_day_sent: 35, created_at: '2025-01-10T10:00:00Z' },
+  { id: '3', email: 'campaigns@propvault.ae', display_name: 'PropVault AE Campaigns', domain: 'propvault.ae', status: 'warming_up', deliverability_score: 72.0, daily_send_limit: 20, current_day_sent: 15, created_at: '2025-03-01T10:00:00Z' },
+  { id: '4', email: 'outreach3@dxbpropvault.com', display_name: 'DXB PropVault Outreach 3', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 91.8, daily_send_limit: 50, current_day_sent: 50, created_at: '2025-01-15T10:00:00Z' },
+  { id: '5', email: 'marina@propvault.ae', display_name: 'PropVault Marina', domain: 'propvault.ae', status: 'paused', deliverability_score: 55.0, daily_send_limit: 30, current_day_sent: 0, created_at: '2025-02-01T10:00:00Z' },
+  { id: '6', email: 'outreach4@dxbpropvault.com', display_name: 'DXB PropVault Outreach 4', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 96.1, daily_send_limit: 50, current_day_sent: 28, created_at: '2025-01-20T10:00:00Z' },
+  { id: '7', email: 'leads@propvault.ae', display_name: 'PropVault Leads', domain: 'propvault.ae', status: 'auth_expired', deliverability_score: null, daily_send_limit: 50, current_day_sent: 0, created_at: '2025-02-10T10:00:00Z' },
+  { id: '8', email: 'outreach5@dxbpropvault.com', display_name: 'DXB PropVault Outreach 5', domain: 'dxbpropvault.com', status: 'warming_up', deliverability_score: 68.4, daily_send_limit: 15, current_day_sent: 10, created_at: '2025-04-01T10:00:00Z' },
+]
 
-onMounted(async () => {
-  await fetchInboxes()
+const inboxes = ref(MOCK_INBOXES)
+const loading = ref(false)
 
-  if (route.query.connected === 'true') {
-    toast.add({
-      title: 'Inbox connected',
-      description: 'Your Gmail inbox has been connected successfully.',
-      color: 'success',
-      icon: 'i-lucide-check-circle',
-    })
-  }
-  else if (route.query.error) {
-    toast.add({
-      title: 'Connection failed',
-      description: String(route.query.error).replace(/_/g, ' '),
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
-    })
-  }
-})
+function connectInbox() {}
 
 const stats = computed(() => [
-  {
-    label: 'Total',
-    value: inboxes.value.length,
-    color: 'text-highlighted',
-  },
-  {
-    label: 'Active',
-    value: inboxes.value.filter(i => i.status === 'active').length,
-    color: 'text-success-500',
-  },
-  {
-    label: 'Warming',
-    value: inboxes.value.filter(i => i.status === 'warming_up').length,
-    color: 'text-warning-500',
-  },
+  { label: 'Total', value: inboxes.value.length, color: 'text-highlighted' },
+  { label: 'Active', value: inboxes.value.filter(i => i.status === 'active').length, color: 'text-success-500' },
+  { label: 'Warming', value: inboxes.value.filter(i => i.status === 'warming_up').length, color: 'text-warning-500' },
   {
     label: 'Paused',
-    value: inboxes.value.filter(i =>
-      ['paused', 'suspended', 'auth_expired', 'retired'].includes(i.status)
-    ).length,
+    value: inboxes.value.filter(i => ['paused', 'suspended', 'auth_expired', 'retired'].includes(i.status)).length,
     color: 'text-muted',
   },
 ])

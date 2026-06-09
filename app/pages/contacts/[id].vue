@@ -2,24 +2,32 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { ContactDetail, Property } from '~/composables/useContacts'
 
-const route = useRoute()
-const { getContact } = useContacts()
+const MOCK_CONTACT: ContactDetail = {
+  id: '1',
+  email: 'ahmed.alrashidi@gmail.com',
+  full_name: 'Ahmed Al-Rashidi',
+  country: 'UAE',
+  language: 'ar',
+  contact_type: 'owner',
+  status: 'active',
+  mobile1: '+971-50-123-4567',
+  mobile2: null,
+  mobile3: null,
+  total_emails_sent: 4,
+  total_replies: 1,
+  last_contacted_at: '2025-05-18T10:22:00Z',
+  last_replied_at: '2025-05-19T09:15:00Z',
+  created_at: '2025-03-15T10:00:00Z',
+  properties: [
+    { id: 'p1', location: 'Dubai Marina', project_name: 'Marina Gate Tower 1', building_name: null, unit_number: '2204', rooms: 2, size_sqft: '1240', transaction_value: '2800000', currency: 'AED' },
+    { id: 'p2', location: 'Downtown Dubai', project_name: 'Burj Vista', building_name: null, unit_number: '3105', rooms: 3, size_sqft: '1680', transaction_value: '3900000', currency: 'AED' },
+    { id: 'p3', location: 'Palm Jumeirah', project_name: 'Signature Villas Frond N', building_name: null, unit_number: 'V-22', rooms: 5, size_sqft: '6200', transaction_value: '12500000', currency: 'AED' },
+  ],
+}
 
-const contact = ref<ContactDetail | null>(null)
-const loading = ref(true)
+const contact = ref<ContactDetail>(MOCK_CONTACT)
+const loading = ref(false)
 const notFound = ref(false)
-
-onMounted(async () => {
-  try {
-    contact.value = await getContact(route.params.id as string)
-  }
-  catch (e: any) {
-    if (e?.status === 404) notFound.value = true
-  }
-  finally {
-    loading.value = false
-  }
-})
 
 const propertyColumns: TableColumn<Property>[] = [
   { accessorKey: 'location', header: 'Location' },
@@ -46,8 +54,8 @@ const TYPE_COLOR: Record<string, BadgeColor> = {
   lead: 'neutral',
 }
 
-function typeColor(t: string): BadgeColor { return TYPE_COLOR[t] ?? 'neutral' }
-function statusColor(s: string): BadgeColor { return STATUS_COLOR[s] ?? 'neutral' }
+function typeColor(t: string): BadgeColor { return (TYPE_COLOR[t] ?? 'neutral') as BadgeColor }
+function statusColor(s: string): BadgeColor { return (STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
 
 function fmt(date: string | null) {
   if (!date) return '—'

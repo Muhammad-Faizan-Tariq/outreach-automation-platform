@@ -8,38 +8,27 @@ export interface AuthUser {
   last_login_at: string | null
 }
 
+const MOCK_USER: AuthUser = {
+  id: 'u1',
+  email: 'mfaizantariq99@gmail.com',
+  full_name: 'Muhammad Fizan',
+  role: 'admin',
+  permissions: ['*'],
+  is_active: true,
+  last_login_at: new Date().toISOString(),
+}
+
 export const useAuth = () => {
   const user = useState<AuthUser | null>('auth.user', () => null)
-  const token = useCookie<string | null>('auth_token', {
-    maxAge: 60 * 60,
-    sameSite: 'lax',
-  })
-
-  const config = useRuntimeConfig()
-  const apiBase = config.public.apiBase as string
+  const token = useCookie<string | null>('auth_token', { maxAge: 60 * 60 * 24, sameSite: 'lax' })
 
   const isLoggedIn = computed(() => !!token.value)
+  const authHeaders = computed(() => ({ Authorization: `Bearer ${token.value ?? 'mock-token'}` }))
 
-  const authHeaders = computed(() => ({
-    Authorization: `Bearer ${token.value ?? ''}`,
-  }))
-
-  const fetchMe = async () => {
-    user.value = await $fetch<AuthUser>(`${apiBase}/auth/me`, {
-      headers: authHeaders.value,
-    })
-  }
-
-  // OAuth2 password flow — backend expects form-encoded username/password
-  const login = async (email: string, password: string) => {
-    const body = new URLSearchParams({ username: email, password })
-    const res = await $fetch<{ access_token: string }>(`${apiBase}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    })
-    token.value = res.access_token
-    await fetchMe()
+  const login = async (_email: string, _password: string) => {
+    await new Promise(r => setTimeout(r, 500))
+    token.value = 'mock-session-token'
+    user.value = { ...MOCK_USER, last_login_at: new Date().toISOString() }
   }
 
   const logout = () => {
@@ -48,15 +37,17 @@ export const useAuth = () => {
     navigateTo('/login')
   }
 
-  // Call on layout mount to rehydrate user from cookie
+  const fetchMe = async () => {
+    user.value = MOCK_USER
+  }
+
   const init = async () => {
     if (token.value && !user.value) {
-      try {
-        await fetchMe()
-      }
-      catch {
-        token.value = null
-      }
+      user.value = MOCK_USER
+    }
+    else if (!token.value) {
+      token.value = 'mock-session-token'
+      user.value = MOCK_USER
     }
   }
 

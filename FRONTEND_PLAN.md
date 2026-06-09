@@ -379,10 +379,106 @@ No `onMounted`, no `await`, no `$fetch`. Pages render instantly.
 
 ---
 
-## 8. What Is NOT in Scope
+## 8. Chart Library
 
-- Real chart library (recharts, chart.js, etc.) — all charts are CSS/Tailwind
-- Rich text editor — template body uses `<textarea>`
+`@nuxt/ui` v4 free does **not** include chart components (those are `@nuxt/ui-pro` only).
+
+**Decision:** Install `chart.js` + `vue-chartjs`.
+
+```bash
+pnpm add chart.js vue-chartjs
+```
+
+Used on:
+- Analytics page — Line chart (send volume), Bar chart (top campaigns), Doughnut (reply classification)
+- Campaign detail — Line chart (7-day sends)
+- Dashboard — Bar chart (sending progress per campaign)
+
+Simple stat bars (e.g. inbox health distribution) use Tailwind `div` width-% bars — no library needed.
+
+---
+
+## 9. Template Variables Style
+
+Templates use `{{variable}}` mustache-style placeholders. Available variables:
+
+| Variable | Example Output |
+|---|---|
+| `{{first_name}}` | Ahmed |
+| `{{full_name}}` | Ahmed Al-Rashidi |
+| `{{property_location}}` | Dubai Marina |
+| `{{property_address}}` | Apt 2204, Marina Gate, Dubai Marina |
+| `{{unit_number}}` | 2204 |
+| `{{agent_name}}` | Sara Ahmed |
+| `{{company_name}}` | DXB PropVault |
+| `{{unsubscribe_link}}` | [Unsubscribe] |
+
+In the editor: variables are shown as **clickable chips** in a panel beside the textarea. Clicking inserts at the cursor position. In the **preview pane**, each `{{variable}}` is rendered as a highlighted `<span>` (not replaced with sample data), so the template author can see exactly where variables appear.
+
+---
+
+## 10. Replies Page — Instantly.ai Style
+
+Layout: **3-column** on desktop.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ [All] [Interested] [Questions] [OOO] [Unsubscribe] [Not Int.]    │  ← label tabs
+├──────────────┬───────────────────────────┬───────────────────────┤
+│  Reply List  │  Thread View              │  Contact Info         │
+│  (w-72)      │  (flex-1)                 │  (w-64)               │
+│              │                           │                       │
+│  ● Ahmed Al  │  From: ahmed@gmail.com    │  Ahmed Al-Rashidi     │
+│    "I am     │  Campaign: Marina Q2      │  ahmed@gmail.com      │
+│    interest" │  ─────────────────────── │  ─────────────────── │
+│    2h ago    │  [Original email ▼]       │  Campaign             │
+│              │  ─────────────────────── │  Dubai Marina Q2      │
+│  ○ Sara M    │  > Hi Ahmed,              │                       │
+│    "Not for  │  > I wanted to reach out  │  Sequence step        │
+│    me thanks"│  > about your property…   │  Step 1 (Initial)     │
+│    5h ago    │  ─────────────────────── │                       │
+│              │  Reply:                   │  Label                │
+│  ○ Khalid H  │  "I am interested in      │  [Interested ▼]       │
+│    "Can you  │  selling the property,    │                       │
+│    call me?" │  can we schedule a call?" │  Assign to            │
+│    1d ago    │                           │  [Sara Ahmed ▼]       │
+│              │  ─────────────────────── │                       │
+│              │  [Archive] [Mark as Lead] │  [Save]               │
+└──────────────┴───────────────────────────┴───────────────────────┘
+```
+
+**Column 1 — Reply List:**
+- Filter bar at top: search input + campaign dropdown
+- Reply item row: unread dot · contact name · email snippet (1 line, truncated) · time
+- Selected row is highlighted (`bg-primary/10`)
+- Unread = bold name + colored dot
+- Scroll independently
+
+**Column 2 — Thread View:**
+- Header: contact name + email + campaign badge
+- Original email: collapsible (click to expand/collapse), shows subject + body
+- Divider
+- Reply body: full text, timestamp
+- Action buttons at bottom: `Archive` (neutral) · `Mark as Lead` (success) · `Not Interested` (error)
+
+**Column 3 — Contact Info:**
+- Contact name + email
+- Property details (location, unit)
+- Campaign name
+- Sequence step (e.g. Step 1 — Initial)
+- AI Label dropdown (`USelect`): Interested / Question / Not Interested / OOO / Unsubscribe / Wrong Person
+- Assign to agent dropdown (`USelect`)
+- Notes textarea
+- Save button
+
+**On mobile / tablet (`< lg`):** Column 3 is hidden; thread view fills the space.
+
+**Static mock: 8 pre-seeded replies** across all label types with realistic Dubai real estate context.
+
+---
+
+## 11. What Is NOT in Scope
+
 - Real-time updates / websockets
 - File upload interaction for CSV (button renders, no handler)
 - Toast notifications from actions (buttons render, no side effects)
@@ -390,32 +486,51 @@ No `onMounted`, no `await`, no `$fetch`. Pages render instantly.
 
 ---
 
-## 9. Build Order (Suggested)
+## 13. Build Order (Suggested)
 
-| # | Page | Complexity |
+| # | Task | Complexity |
 |---|---|---|
-| 1 | Layout sidebar update | Low |
-| 2 | Shared components (StatCard, PageHeader, EmptyState) | Low |
-| 3 | Existing pages — strip API, add mock data | Low |
-| 4 | Dashboard redesign | Medium |
-| 5 | Campaigns list | Medium |
-| 6 | Templates list + detail/edit | Medium |
-| 7 | Campaign detail (tabbed) | High |
-| 8 | Campaign create wizard | High |
-| 9 | Replies inbox | High |
-| 10 | Analytics | Medium |
-| 11 | Sent Emails | Low |
-| 12 | Queue | Low |
-| 13 | Users management | Low |
-| 14 | Suppression list | Low |
+| 1 | Install `chart.js` + `vue-chartjs` | Low |
+| 2 | Layout sidebar update (all nav sections + dividers) | Low |
+| 3 | Shared components (StatCard, PageHeader, EmptyState) | Low |
+| 4 | Existing pages — strip API calls, add inline mock data | Low |
+| 5 | Dashboard redesign | Medium |
+| 6 | Campaigns list | Medium |
+| 7 | Templates list + detail/edit | Medium |
+| 8 | Campaign detail (tabbed) | High |
+| 9 | Campaign create wizard | High |
+| 10 | Replies inbox (Instantly.ai style) | High |
+| 11 | Analytics (with Chart.js) | Medium |
+| 12 | Sent Emails | Low |
+| 13 | Queue | Low |
+| 14 | Users management | Low |
+| 15 | Suppression list | Low |
 
 ---
 
-## 10. Open Questions for Review
+## 12. Final Decisions
 
-1. **Campaigns create wizard** — 4 linear steps or a sidebar stepper? Should step 2 (audience) show a real contact preview table or just a count?
-2. **Templates editor** — plain `<textarea>` or a styled monospace-font editor with syntax highlighting for `{{variables}}`?
-3. **Replies page** — should the left-column list auto-select the first reply on load, or start empty?
-4. **Analytics charts** — CSS-only bars are fast to build but limited visually. Is a chart library acceptable even if API data isn't wired? (e.g. Chart.js with static data)
-5. **Sidebar** — always visible wide sidebar, or should it collapse to icons on `md` and only expand on hover/toggle?
-6. **Sent Emails slide-over** — full-width slide-over showing email HTML preview, or a modal?
+| Question | Decision |
+|---|---|
+| Campaigns create wizard | 4 linear horizontal steps |
+| Replies auto-select | ✅ Auto-select first reply on load |
+| Sidebar | ✅ Collapsible to icon-only; toggle button at bottom |
+| Sent Emails detail | Slide-over panel |
+| Template editor | ✅ Tiptap rich text (`@tiptap/vue-3` + `@tiptap/starter-kit` + `@tiptap/extension-link`) |
+
+### Tiptap Extensions
+
+```bash
+pnpm add @tiptap/vue-3 @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-placeholder
+```
+
+Toolbar: Bold · Italic · Underline · Link · Bullet list · Numbered list · `{{variable}}` insert button
+
+### Sidebar Collapse Behaviour
+
+- Collapsed state stored in `useState('sidebar.collapsed', () => false)` (persists across page nav)
+- Expanded: `w-56` with icon + label
+- Collapsed: `w-14` with icon only, tooltip on hover showing the label
+- Toggle button: chevron icon at the bottom of the sidebar
+- Transition: `transition-all duration-200`
+- Unread badge on Replies: visible in both states (dot only when collapsed)

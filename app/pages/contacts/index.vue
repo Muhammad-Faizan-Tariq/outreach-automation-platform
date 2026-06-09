@@ -3,29 +3,56 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Contact, ImportBatch } from '~/composables/useContacts'
 
 const toast = useToast()
-const { contacts, total, loading, fetchContacts, uploadCSV, getImport } = useContacts()
+
+// ---------- mock data ----------
+const MOCK_CONTACTS: Contact[] = [
+  { id: '1', email: 'ahmed.alrashidi@gmail.com', full_name: 'Ahmed Al-Rashidi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 3, total_emails_sent: 4, created_at: '2025-05-10T10:00:00Z' },
+  { id: '2', email: 'sara.almansoori@outlook.com', full_name: 'Sara Al-Mansoori', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-05-09T09:00:00Z' },
+  { id: '3', email: 'khalid.hassan@gmail.com', full_name: 'Khalid Hassan', country: 'UAE', contact_type: 'tenant', status: 'active', property_count: 1, total_emails_sent: 1, created_at: '2025-05-08T14:00:00Z' },
+  { id: '4', email: 'fatima.alali@yahoo.com', full_name: 'Fatima Al-Ali', country: 'UAE', contact_type: 'owner', status: 'unsubscribed', property_count: 2, total_emails_sent: 3, created_at: '2025-05-07T11:00:00Z' },
+  { id: '5', email: 'omar.sheikh@gmail.com', full_name: 'Omar Sheikh', country: 'UAE', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-05-06T08:00:00Z' },
+  { id: '6', email: 'nadia.karim@hotmail.com', full_name: 'Nadia Karim', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 4, total_emails_sent: 5, created_at: '2025-05-05T16:00:00Z' },
+  { id: '7', email: 'hassan.ibrahim@gmail.com', full_name: 'Hassan Ibrahim', country: 'Egypt', contact_type: 'owner', status: 'bounced', property_count: 1, total_emails_sent: 1, created_at: '2025-05-04T10:00:00Z' },
+  { id: '8', email: 'layla.ahmed@gmail.com', full_name: 'Layla Ahmed', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-05-03T09:00:00Z' },
+  { id: '9', email: 'mohammed.alabudhabi@outlook.com', full_name: 'Mohammed Al-Abudhabi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 5, total_emails_sent: 6, created_at: '2025-05-02T13:00:00Z' },
+  { id: '10', email: 'ali.hussain@gmail.com', full_name: 'Ali Hussain', country: 'Bahrain', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-05-01T10:00:00Z' },
+  { id: '11', email: 'rima.saleh@gmail.com', full_name: 'Rima Saleh', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-04-30T11:00:00Z' },
+  { id: '12', email: 'tariq.almutairi@gmail.com', full_name: 'Tariq Al-Mutairi', country: 'Kuwait', contact_type: 'owner', status: 'do_not_contact', property_count: 2, total_emails_sent: 2, created_at: '2025-04-29T09:00:00Z' },
+  { id: '13', email: 'hind.alqasimi@outlook.com', full_name: 'Hind Al-Qasimi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 3, total_emails_sent: 4, created_at: '2025-04-28T15:00:00Z' },
+  { id: '14', email: 'saif.alblooshi@gmail.com', full_name: 'Saif Al-Blooshi', country: 'UAE', contact_type: 'tenant', status: 'active', property_count: 1, total_emails_sent: 1, created_at: '2025-04-27T10:00:00Z' },
+  { id: '15', email: 'mariam.alketbi@gmail.com', full_name: 'Mariam Al-Ketbi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-04-26T08:00:00Z' },
+  { id: '16', email: 'rashid.alfalasi@yahoo.com', full_name: 'Rashid Al-Falasi', country: 'UAE', contact_type: 'owner', status: 'complained', property_count: 1, total_emails_sent: 2, created_at: '2025-04-25T13:00:00Z' },
+  { id: '17', email: 'amira.hassan@gmail.com', full_name: 'Amira Hassan', country: 'Egypt', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-04-24T11:00:00Z' },
+  { id: '18', email: 'sultan.almanei@outlook.com', full_name: 'Sultan Al-Manei', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 6, total_emails_sent: 7, created_at: '2025-04-23T09:00:00Z' },
+  { id: '19', email: 'dalal.alshehhi@gmail.com', full_name: 'Dalal Al-Shehhi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-04-22T14:00:00Z' },
+  { id: '20', email: 'waleed.almarri@gmail.com', full_name: 'Waleed Al-Marri', country: 'Qatar', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-04-21T10:00:00Z' },
+]
 
 // ---------- pagination + search ----------
 const page = ref(1)
 const pageSize = 50
 const search = ref('')
-let searchTimer: ReturnType<typeof setTimeout>
+const loading = ref(false)
 
-const load = () => fetchContacts({ page: page.value, page_size: pageSize, search: search.value || undefined })
-
-watch(page, load)
-watch(search, () => {
-  clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => { page.value = 1; load() }, 350)
+const filtered = computed(() => {
+  if (!search.value.trim()) return MOCK_CONTACTS
+  const q = search.value.toLowerCase()
+  return MOCK_CONTACTS.filter(c =>
+    c.email.toLowerCase().includes(q)
+    || (c.full_name?.toLowerCase().includes(q) ?? false),
+  )
 })
-onMounted(load)
+
+const contacts = computed(() => filtered.value)
+const total = computed(() => filtered.value.length)
+
+watch(search, () => { page.value = 1 })
 
 // ---------- import modal ----------
 const importOpen = ref(false)
 const selectedFile = ref<File | null>(null)
 const importing = ref(false)
 const importBatch = ref<ImportBatch | null>(null)
-let pollTimer: ReturnType<typeof setInterval>
 
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -36,49 +63,49 @@ async function startImport() {
   if (!selectedFile.value) return
   importing.value = true
   importBatch.value = null
-  try {
-    const { batch_id } = await uploadCSV(selectedFile.value)
-    // Start polling
-    pollTimer = setInterval(async () => {
-      const batch = await getImport(batch_id)
-      importBatch.value = batch
-      if (['completed', 'failed'].includes(batch.status)) {
-        clearInterval(pollTimer)
-        importing.value = false
-        if (batch.status === 'completed') {
-          toast.add({
-            title: 'Import complete',
-            description: `${batch.contacts_created} contacts added, ${batch.rows_skipped} skipped.`,
-            color: 'success',
-            icon: 'i-lucide-check-circle',
-          })
-          importOpen.value = false
-          await load()
-        }
-        else {
-          toast.add({
-            title: 'Import failed',
-            description: 'Check the error log below.',
-            color: 'error',
-            icon: 'i-lucide-alert-circle',
-          })
-        }
-      }
-    }, 2000)
+  // Simulate a 1.5 s processing delay, then show completed state
+  await new Promise(r => setTimeout(r, 800))
+  importBatch.value = {
+    id: 'mock-batch-1',
+    filename: selectedFile.value.name,
+    status: 'processing',
+    total_rows: 247,
+    contacts_created: 0,
+    contacts_updated: 0,
+    properties_created: 0,
+    rows_skipped: 0,
+    rows_failed: 0,
+    error_log: [],
+    started_at: new Date().toISOString(),
+    completed_at: null,
+    created_at: new Date().toISOString(),
   }
-  catch (e: any) {
-    importing.value = false
-    toast.add({
-      title: 'Upload failed',
-      description: e?.data?.detail ?? 'Could not upload file.',
-      color: 'error',
-      icon: 'i-lucide-alert-circle',
-    })
+  await new Promise(r => setTimeout(r, 1400))
+  importBatch.value = {
+    id: 'mock-batch-1',
+    filename: selectedFile.value.name,
+    status: 'completed',
+    total_rows: 247,
+    contacts_created: 238,
+    contacts_updated: 0,
+    properties_created: 238,
+    rows_skipped: 9,
+    rows_failed: 0,
+    error_log: [],
+    started_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
   }
+  importing.value = false
+  toast.add({
+    title: 'Import complete',
+    description: '238 contacts added, 9 skipped.',
+    color: 'success',
+    icon: 'i-lucide-check-circle',
+  })
 }
 
 function closeImport() {
-  clearInterval(pollTimer)
   importOpen.value = false
   importBatch.value = null
   selectedFile.value = null
@@ -113,11 +140,11 @@ const STATUS_COLOR: Record<string, BadgeColor> = {
   deleted: 'neutral',
 }
 
-function typeColor(t: string): BadgeColor { return TYPE_COLOR[t] ?? 'neutral' }
-function statusColor(s: string): BadgeColor { return STATUS_COLOR[s] ?? 'neutral' }
+function typeColor(t: string): BadgeColor { return (TYPE_COLOR[t] ?? 'neutral') as BadgeColor }
+function statusColor(s: string): BadgeColor { return (STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
 
 function importStatusLabel(s: string) {
-  return { pending: 'Queued', processing: 'Processing…', completed: 'Done', failed: 'Failed' }[s] ?? s
+  return ({ pending: 'Queued', processing: 'Processing…', completed: 'Done', failed: 'Failed' } as Record<string, string>)[s] ?? s
 }
 function importStatusColor(s: string): BadgeColor {
   const map: Record<string, BadgeColor> = { pending: 'neutral', processing: 'warning', completed: 'success', failed: 'error' }
