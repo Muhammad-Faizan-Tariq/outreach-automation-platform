@@ -29,6 +29,8 @@ const navItems: NavItem[] = [
   { label: 'Queue', icon: 'i-lucide-layers', to: '/queue' },
   { label: 'Health', icon: 'i-lucide-activity', to: '/health' },
 
+  { label: 'WA Templates', icon: 'i-lucide-message-circle', to: '/whatsapp/templates', section: 'WhatsApp' },
+
   { label: 'Users', icon: 'i-lucide-users-round', to: '/settings/users', section: 'Settings' },
   { label: 'Suppression', icon: 'i-lucide-shield-x', to: '/settings/suppression' },
 ]
