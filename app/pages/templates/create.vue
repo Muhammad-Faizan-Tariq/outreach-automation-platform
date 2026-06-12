@@ -1,12 +1,14 @@
 <script setup lang="ts">
 const router = useRouter()
 const toast = useToast()
+const { createTemplate, getAllowedVariables } = useTemplates()
 
 const editorRef = ref<{ insertContent: (t: string) => void } | null>(null)
 
 const form = reactive({
   name: '',
-  category: 'initial' as 'initial' | 'follow_up' | 'closing',
+  campaign_type: 'owner_sell' as 'owner_sell' | 'owner_rent_out',
+  step: 'initial' as 'initial' | 'follow_up' | 'closing',
   subject: '',
   body: '',
 })
@@ -14,63 +16,94 @@ const form = reactive({
 const saving = ref(false)
 const previewOpen = ref(false)
 
-const CATEGORIES = [
-  { label: 'Initial email', value: 'initial' },
-  { label: 'Follow-up', value: 'follow_up' },
-  { label: 'Closing email', value: 'closing' },
+const CAMPAIGN_TYPES = [
+  { label: 'Owner – Sell', value: 'owner_sell' },
+  { label: 'Owner – Rent out', value: 'owner_rent_out' },
 ]
 
-const VARIABLES = [
-  { label: 'First name', value: '{{first_name}}' },
-  { label: 'Full name', value: '{{full_name}}' },
-  { label: 'Email', value: '{{email}}' },
-  { label: 'Location', value: '{{property_location}}' },
-  { label: 'Unit #', value: '{{unit_number}}' },
-  { label: 'Value', value: '{{property_value}}' },
-  { label: 'Country', value: '{{country}}' },
+const STEPS = [
+  { label: 'Initial email (step 1)', value: 'initial' },
+  { label: 'Follow-up (step 2)', value: 'follow_up' },
+  { label: 'Closing email (step 3)', value: 'closing' },
 ]
 
-// Preview: replace variables with sample data
+const LABEL_MAP: Record<string, string> = {
+  first_name: 'First name', full_name: 'Full name', email: 'Email',
+  property_location: 'Location', unit_number: 'Unit #',
+  property_value: 'Value', country: 'Country',
+}
+function varLabel(v: string) {
+  return LABEL_MAP[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+}
+
+const allowedVars = ref<string[]>([])
+const VARIABLES = computed(() => allowedVars.value.map(v => ({ label: varLabel(v), value: `{{${v}}}` })))
+
+onMounted(async () => {
+  try { allowedVars.value = await getAllowedVariables() } catch { /* ignore */ }
+})
+
 const SAMPLE: Record<string, string> = {
-  '{{first_name}}': 'Ahmed',
-  '{{full_name}}': 'Ahmed Al-Rashidi',
-  '{{email}}': 'ahmed.alrashidi@gmail.com',
-  '{{property_location}}': 'Dubai Marina',
-  '{{unit_number}}': '2204',
-  '{{property_value}}': 'AED 2,800,000',
-  '{{country}}': 'UAE',
+  first_name: 'Ahmed',
+  full_name: 'Ahmed Al-Rashidi',
+  email: 'ahmed.alrashidi@gmail.com',
+  property_location: 'Dubai Marina',
+  unit_number: '2204',
+  property_value: 'AED 2,800,000',
+  country: 'UAE',
 }
 
 const previewBody = computed(() => {
   let html = form.body
   for (const [key, val] of Object.entries(SAMPLE)) {
-    html = html.replaceAll(key, `<mark class="bg-primary/20 text-primary rounded px-0.5">${val}</mark>`)
+    html = html.replaceAll(`{{${key}}}`, `<mark class="bg-primary/20 text-primary rounded px-0.5">${val}</mark>`)
   }
   return html
 })
 
 const previewSubject = computed(() => {
   let s = form.subject
-  for (const [key, val] of Object.entries(SAMPLE)) s = s.replaceAll(key, val)
+  for (const [key, val] of Object.entries(SAMPLE)) s = s.replaceAll(`{{${key}}}`, val)
   return s
 })
 
 const canSave = computed(() => form.name.trim() && form.subject.trim() && form.body.trim())
 
+function stepToNumber(s: string): number {
+  return s === 'initial' ? 1 : s === 'follow_up' ? 2 : 3
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
 async function save() {
   if (!canSave.value) return
   saving.value = true
-  await new Promise(r => setTimeout(r, 700))
-  saving.value = false
-  toast.add({ title: 'Template saved', description: `"${form.name}" has been created.`, color: 'success', icon: 'i-lucide-check-circle' })
-  router.push('/templates')
+  try {
+    await createTemplate({
+      name: form.name,
+      campaign_type: form.campaign_type,
+      step_number: stepToNumber(form.step),
+      subject: form.subject,
+      body_html: form.body,
+      body_text: stripHtml(form.body),
+    })
+    toast.add({ title: 'Template created', description: `"${form.name}" has been saved.`, color: 'success', icon: 'i-lucide-check-circle' })
+    router.push('/templates')
+  }
+  catch (e: any) {
+    toast.add({ title: 'Save failed', description: e?.data?.detail ?? 'Error creating template', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 
 <template>
   <div class="max-w-4xl mx-auto px-6 py-8">
 
-    <!-- Back -->
     <NuxtLink to="/templates" class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-highlighted mb-6">
       <UIcon name="i-lucide-arrow-left" class="w-4 h-4" />
       Back to templates
@@ -115,13 +148,14 @@ async function save() {
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Category</label>
-            <USelect
-              v-model="form.category"
-              :items="CATEGORIES"
-              value-key="value"
-              label-key="label"
-            />
+            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Campaign type</label>
+            <USelect v-model="form.campaign_type" :items="CAMPAIGN_TYPES" value-key="value" label-key="label" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Step</label>
+            <USelect v-model="form.step" :items="STEPS" value-key="value" label-key="label" />
+            <p class="text-xs text-muted mt-1">Step 1 = initial, 2 = follow-up, 3 = closing.</p>
           </div>
         </UCard>
 
@@ -151,10 +185,7 @@ async function save() {
         <UCard class="space-y-4">
           <div>
             <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Subject line <span class="text-error-500">*</span></label>
-            <UInput
-              v-model="form.subject"
-              placeholder="e.g. Maximize Your {{property_location}} Investment"
-            />
+            <UInput v-model="form.subject" placeholder="e.g. Maximize Your {{property_location}} Investment" />
             <p class="text-xs text-muted mt-1">Variables in the subject are also supported.</p>
           </div>
         </UCard>

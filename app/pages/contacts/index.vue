@@ -3,56 +3,34 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Contact, ImportBatch } from '~/composables/useContacts'
 
 const toast = useToast()
-
-// ---------- mock data ----------
-const MOCK_CONTACTS: Contact[] = [
-  { id: '1', email: 'ahmed.alrashidi@gmail.com', full_name: 'Ahmed Al-Rashidi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 3, total_emails_sent: 4, created_at: '2025-05-10T10:00:00Z' },
-  { id: '2', email: 'sara.almansoori@outlook.com', full_name: 'Sara Al-Mansoori', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-05-09T09:00:00Z' },
-  { id: '3', email: 'khalid.hassan@gmail.com', full_name: 'Khalid Hassan', country: 'UAE', contact_type: 'tenant', status: 'active', property_count: 1, total_emails_sent: 1, created_at: '2025-05-08T14:00:00Z' },
-  { id: '4', email: 'fatima.alali@yahoo.com', full_name: 'Fatima Al-Ali', country: 'UAE', contact_type: 'owner', status: 'unsubscribed', property_count: 2, total_emails_sent: 3, created_at: '2025-05-07T11:00:00Z' },
-  { id: '5', email: 'omar.sheikh@gmail.com', full_name: 'Omar Sheikh', country: 'UAE', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-05-06T08:00:00Z' },
-  { id: '6', email: 'nadia.karim@hotmail.com', full_name: 'Nadia Karim', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 4, total_emails_sent: 5, created_at: '2025-05-05T16:00:00Z' },
-  { id: '7', email: 'hassan.ibrahim@gmail.com', full_name: 'Hassan Ibrahim', country: 'Egypt', contact_type: 'owner', status: 'bounced', property_count: 1, total_emails_sent: 1, created_at: '2025-05-04T10:00:00Z' },
-  { id: '8', email: 'layla.ahmed@gmail.com', full_name: 'Layla Ahmed', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-05-03T09:00:00Z' },
-  { id: '9', email: 'mohammed.alabudhabi@outlook.com', full_name: 'Mohammed Al-Abudhabi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 5, total_emails_sent: 6, created_at: '2025-05-02T13:00:00Z' },
-  { id: '10', email: 'ali.hussain@gmail.com', full_name: 'Ali Hussain', country: 'Bahrain', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-05-01T10:00:00Z' },
-  { id: '11', email: 'rima.saleh@gmail.com', full_name: 'Rima Saleh', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-04-30T11:00:00Z' },
-  { id: '12', email: 'tariq.almutairi@gmail.com', full_name: 'Tariq Al-Mutairi', country: 'Kuwait', contact_type: 'owner', status: 'do_not_contact', property_count: 2, total_emails_sent: 2, created_at: '2025-04-29T09:00:00Z' },
-  { id: '13', email: 'hind.alqasimi@outlook.com', full_name: 'Hind Al-Qasimi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 3, total_emails_sent: 4, created_at: '2025-04-28T15:00:00Z' },
-  { id: '14', email: 'saif.alblooshi@gmail.com', full_name: 'Saif Al-Blooshi', country: 'UAE', contact_type: 'tenant', status: 'active', property_count: 1, total_emails_sent: 1, created_at: '2025-04-27T10:00:00Z' },
-  { id: '15', email: 'mariam.alketbi@gmail.com', full_name: 'Mariam Al-Ketbi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-04-26T08:00:00Z' },
-  { id: '16', email: 'rashid.alfalasi@yahoo.com', full_name: 'Rashid Al-Falasi', country: 'UAE', contact_type: 'owner', status: 'complained', property_count: 1, total_emails_sent: 2, created_at: '2025-04-25T13:00:00Z' },
-  { id: '17', email: 'amira.hassan@gmail.com', full_name: 'Amira Hassan', country: 'Egypt', contact_type: 'lead', status: 'active', property_count: 0, total_emails_sent: 1, created_at: '2025-04-24T11:00:00Z' },
-  { id: '18', email: 'sultan.almanei@outlook.com', full_name: 'Sultan Al-Manei', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 6, total_emails_sent: 7, created_at: '2025-04-23T09:00:00Z' },
-  { id: '19', email: 'dalal.alshehhi@gmail.com', full_name: 'Dalal Al-Shehhi', country: 'UAE', contact_type: 'owner', status: 'active', property_count: 2, total_emails_sent: 3, created_at: '2025-04-22T14:00:00Z' },
-  { id: '20', email: 'waleed.almarri@gmail.com', full_name: 'Waleed Al-Marri', country: 'Qatar', contact_type: 'owner', status: 'active', property_count: 1, total_emails_sent: 2, created_at: '2025-04-21T10:00:00Z' },
-]
+const { contacts, total, loading, fetchContacts, uploadCSV, getImport, listImports } = useContacts()
 
 // ---------- pagination + search ----------
 const page = ref(1)
 const pageSize = 50
 const search = ref('')
-const loading = ref(false)
 
-const filtered = computed(() => {
-  if (!search.value.trim()) return MOCK_CONTACTS
-  const q = search.value.toLowerCase()
-  return MOCK_CONTACTS.filter(c =>
-    c.email.toLowerCase().includes(q)
-    || (c.full_name?.toLowerCase().includes(q) ?? false),
-  )
+async function load() {
+  await fetchContacts({ page: page.value, page_size: pageSize, search: search.value || undefined })
+}
+
+onMounted(load)
+watch(page, load)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    load()
+  }, 300)
 })
-
-const contacts = computed(() => filtered.value)
-const total = computed(() => filtered.value.length)
-
-watch(search, () => { page.value = 1 })
 
 // ---------- import modal ----------
 const importOpen = ref(false)
 const selectedFile = ref<File | null>(null)
 const importing = ref(false)
 const importBatch = ref<ImportBatch | null>(null)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -63,53 +41,67 @@ async function startImport() {
   if (!selectedFile.value) return
   importing.value = true
   importBatch.value = null
-  // Simulate a 1.5 s processing delay, then show completed state
-  await new Promise(r => setTimeout(r, 800))
-  importBatch.value = {
-    id: 'mock-batch-1',
-    filename: selectedFile.value.name,
-    status: 'processing',
-    total_rows: 247,
-    contacts_created: 0,
-    contacts_updated: 0,
-    properties_created: 0,
-    rows_skipped: 0,
-    rows_failed: 0,
-    error_log: [],
-    started_at: new Date().toISOString(),
-    completed_at: null,
-    created_at: new Date().toISOString(),
+
+  try {
+    const { batch_id } = await uploadCSV(selectedFile.value)
+
+    // Initial status
+    importBatch.value = await getImport(batch_id)
+
+    // Poll every 2s until completed or failed
+    pollTimer = setInterval(async () => {
+      const batch = await getImport(batch_id)
+      importBatch.value = batch
+      if (batch.status === 'completed' || batch.status === 'failed') {
+        clearInterval(pollTimer!)
+        pollTimer = null
+        importing.value = false
+        if (batch.status === 'completed') {
+          toast.add({
+            title: 'Import complete',
+            description: `${batch.contacts_created} contacts created, ${batch.rows_skipped} skipped.`,
+            color: 'success',
+            icon: 'i-lucide-check-circle',
+          })
+          await load()
+        }
+      }
+    }, 2000)
   }
-  await new Promise(r => setTimeout(r, 1400))
-  importBatch.value = {
-    id: 'mock-batch-1',
-    filename: selectedFile.value.name,
-    status: 'completed',
-    total_rows: 247,
-    contacts_created: 238,
-    contacts_updated: 0,
-    properties_created: 238,
-    rows_skipped: 9,
-    rows_failed: 0,
-    error_log: [],
-    started_at: new Date().toISOString(),
-    completed_at: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+  catch (e: any) {
+    importing.value = false
+    toast.add({ title: 'Import failed', description: e?.data?.detail ?? 'Upload error', color: 'error', icon: 'i-lucide-x-circle' })
   }
-  importing.value = false
-  toast.add({
-    title: 'Import complete',
-    description: '238 contacts added, 9 skipped.',
-    color: 'success',
-    icon: 'i-lucide-check-circle',
-  })
 }
 
 function closeImport() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
   importOpen.value = false
   importBatch.value = null
   selectedFile.value = null
   importing.value = false
+}
+
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+
+// ---------- import history ----------
+const historyOpen = ref(false)
+const historyList = ref<ImportBatch[]>([])
+const historyLoading = ref(false)
+
+async function openHistory() {
+  historyOpen.value = true
+  if (historyList.value.length > 0) return
+  historyLoading.value = true
+  try {
+    historyList.value = await listImports()
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to load history', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally {
+    historyLoading.value = false
+  }
 }
 
 // ---------- table ----------
@@ -161,9 +153,14 @@ function importStatusColor(s: string): BadgeColor {
         <h1 class="text-2xl font-semibold text-highlighted">Contacts</h1>
         <p class="mt-0.5 text-sm text-muted">{{ total.toLocaleString() }} total</p>
       </div>
-      <UButton icon="i-lucide-upload" @click="importOpen = true">
-        Import CSV
-      </UButton>
+      <div class="flex items-center gap-2">
+        <UButton icon="i-lucide-history" color="neutral" variant="subtle" @click="openHistory">
+          History
+        </UButton>
+        <UButton icon="i-lucide-upload" @click="importOpen = true">
+          Import CSV
+        </UButton>
+      </div>
     </div>
 
     <!-- Search -->
@@ -243,10 +240,10 @@ function importStatusColor(s: string): BadgeColor {
             </div>
           </template>
 
-          <!-- File picker (only before upload) -->
+          <!-- File picker -->
           <div v-if="!importBatch" class="space-y-4">
             <p class="text-sm text-muted">
-              Upload a DLD CSV file. Processing runs in the background — you'll see a live status below.
+              Upload a DLD CSV file. Processing runs in the background — status updates every 2 seconds.
             </p>
             <div>
               <label class="text-sm font-medium text-highlighted block mb-1.5">CSV file</label>
@@ -286,24 +283,22 @@ function importStatusColor(s: string): BadgeColor {
                 <p class="font-semibold text-success-600 tabular-nums">{{ importBatch.contacts_created }}</p>
               </div>
               <div class="bg-elevated rounded-lg p-3">
+                <p class="text-muted text-xs mb-0.5">Updated</p>
+                <p class="font-semibold text-info-600 tabular-nums">{{ importBatch.contacts_updated }}</p>
+              </div>
+              <div class="bg-elevated rounded-lg p-3">
                 <p class="text-muted text-xs mb-0.5">Skipped</p>
                 <p class="font-semibold text-muted tabular-nums">{{ importBatch.rows_skipped }}</p>
               </div>
-              <div class="bg-elevated rounded-lg p-3">
-                <p class="text-muted text-xs mb-0.5">Failed</p>
-                <p class="font-semibold text-error-600 tabular-nums">{{ importBatch.rows_failed }}</p>
-              </div>
             </div>
 
-            <!-- Spinner while processing -->
             <div v-if="importing" class="flex items-center gap-2 text-sm text-muted">
               <UIcon name="i-lucide-loader-circle" class="w-4 h-4 animate-spin" />
               Processing…
             </div>
 
-            <!-- Error log -->
             <div v-if="importBatch.error_log?.length" class="text-xs text-error-600 bg-error-50 rounded-lg p-3 max-h-32 overflow-y-auto space-y-1">
-              <p v-for="(err, i) in importBatch.error_log.slice(0, 20)" :key="i">{{ err.row ?? '' }} {{ err.reason ?? JSON.stringify(err) }}</p>
+              <p v-for="(err, i) in importBatch.error_log.slice(0, 20)" :key="i">{{ (err as any).row ?? '' }} {{ (err as any).reason ?? JSON.stringify(err) }}</p>
             </div>
 
             <UButton
@@ -315,6 +310,48 @@ function importStatusColor(s: string): BadgeColor {
             >
               Close
             </UButton>
+          </div>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Import history modal -->
+    <UModal v-model:open="historyOpen">
+      <template #content>
+        <UCard class="sm:max-w-2xl w-full">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-semibold text-highlighted">Import history</h3>
+              <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="historyOpen = false" />
+            </div>
+          </template>
+
+          <div v-if="historyLoading" class="space-y-2 py-4">
+            <div v-for="n in 4" :key="n" class="h-12 bg-elevated rounded animate-pulse" />
+          </div>
+
+          <div v-else-if="historyList.length === 0" class="py-10 text-center text-sm text-muted">
+            No imports yet.
+          </div>
+
+          <div v-else class="space-y-2 max-h-[60vh] overflow-y-auto">
+            <div
+              v-for="b in historyList"
+              :key="b.id"
+              class="flex items-center gap-3 px-3 py-3 rounded-lg border border-default bg-default"
+            >
+              <UBadge :color="importStatusColor(b.status)" variant="subtle" size="sm">
+                {{ importStatusLabel(b.status) }}
+              </UBadge>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-default truncate">{{ b.filename }}</p>
+                <p class="text-xs text-muted">
+                  {{ b.contacts_created }} created · {{ b.contacts_updated }} updated · {{ b.rows_skipped }} skipped
+                  <span v-if="b.rows_failed"> · <span class="text-error-600">{{ b.rows_failed }} failed</span></span>
+                </p>
+              </div>
+              <span class="text-xs text-muted shrink-0">{{ b.completed_at ? new Date(b.completed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) : '—' }}</span>
+            </div>
           </div>
         </UCard>
       </template>

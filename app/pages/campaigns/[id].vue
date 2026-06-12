@@ -1,504 +1,499 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { Campaign, CampaignTemplateStep } from '~/composables/useCampaigns'
+import type { EmailTemplate } from '~/composables/useTemplates'
 
-// ── types ──────────────────────────────────────────────────────────────
-interface EmailStep {
-  id: string
-  stepNumber: number
-  subject: string
-  waitDays: number
-  sent: number
-  opened: number
-  replied: number
-}
+const route = useRoute()
+const toast = useToast()
+const { getCampaign, getCampaignTemplates, startCampaign, pauseCampaign, completeCampaign, archiveCampaign, updateCampaign } = useCampaigns()
+const { getTemplate } = useTemplates()
 
-interface RecentLead {
-  id: string
-  email: string
-  name: string
-  status: 'replied' | 'opened' | 'sent' | 'bounced'
-  lastActivity: string
-  step: number
-}
-
-interface SentLogEntry {
-  id: string
-  to: string
-  toName: string
-  inbox: string
-  sentAt: string
-  status: 'delivered' | 'opened' | 'replied' | 'bounced' | 'failed'
-  opens: number
-  step: number
-}
-
-interface Campaign {
-  id: string
-  name: string
-  status: 'active' | 'paused' | 'draft' | 'completed' | 'error'
-  contacts: number
-  sent: number
-  opened: number
-  replied: number
-  bounced: number
-  dailySendLimit: number
-  inboxCount: number
-  startDate: string
-  endDate?: string
-  createdAt: string
-  fromName: string
-  replyTo: string
-  steps: EmailStep[]
-  leads: RecentLead[]
-  sentLog: SentLogEntry[]
-  dailySentData: number[]
-  dailyReplyData: number[]
-}
-
-// ── mock data ───────────────────────────────────────────────────────────
-const MOCK_CAMPAIGN: Campaign = {
-  id: '1',
-  name: 'Marina Q2 Outreach',
-  status: 'active',
-  contacts: 4820,
-  sent: 2941,
-  opened: 1294,
-  replied: 318,
-  bounced: 44,
-  dailySendLimit: 200,
-  inboxCount: 4,
-  startDate: '2025-05-01',
-  createdAt: '2025-04-28',
-  fromName: 'DXB PropVault Team',
-  replyTo: 'outreach1@dxbpropvault.com',
-  dailySentData: [120, 185, 200, 198, 200, 175, 195, 200, 188, 200, 192, 200, 178, 200],
-  dailyReplyData: [8, 12, 18, 22, 19, 28, 31, 24, 35, 42, 38, 45, 30, 48],
-  sentLog: [
-    { id: 'sl1', to: 'ahmed.alrashidi@gmail.com', toName: 'Ahmed Al-Rashidi', inbox: 'outreach1@dxbpropvault.com', sentAt: '2025-06-08T10:00:00Z', status: 'replied', opens: 3, step: 1 },
-    { id: 'sl2', to: 'sara.almansoori@outlook.com', toName: 'Sara Al-Mansoori', inbox: 'outreach2@dxbpropvault.com', sentAt: '2025-06-08T14:30:00Z', status: 'replied', opens: 2, step: 1 },
-    { id: 'sl3', to: 'khalid.hassan@gmail.com', toName: 'Khalid Hassan', inbox: 'outreach1@dxbpropvault.com', sentAt: '2025-06-08T10:05:00Z', status: 'opened', opens: 1, step: 1 },
-    { id: 'sl4', to: 'fatima.alali@yahoo.com', toName: 'Fatima Al-Ali', inbox: 'outreach3@dxbpropvault.com', sentAt: '2025-06-09T08:00:00Z', status: 'delivered', opens: 0, step: 1 },
-    { id: 'sl5', to: 'hind.alqasimi@outlook.com', toName: 'Hind Al-Qasimi', inbox: 'outreach4@dxbpropvault.com', sentAt: '2025-06-08T09:00:00Z', status: 'replied', opens: 2, step: 1 },
-    { id: 'sl6', to: 'nadia.karim@hotmail.com', toName: 'Nadia Karim', inbox: 'outreach1@dxbpropvault.com', sentAt: '2025-06-07T15:00:00Z', status: 'replied', opens: 1, step: 1 },
-    { id: 'sl7', to: 'hassan.ibrahim@gmail.com', toName: 'Hassan Ibrahim', inbox: 'outreach3@dxbpropvault.com', sentAt: '2025-06-05T14:00:00Z', status: 'bounced', opens: 0, step: 1 },
-    { id: 'sl8', to: 'layla.ahmed@gmail.com', toName: 'Layla Ahmed', inbox: 'outreach4@dxbpropvault.com', sentAt: '2025-06-07T10:00:00Z', status: 'opened', opens: 2, step: 2 },
-    { id: 'sl9', to: 'rima.saleh@gmail.com', toName: 'Rima Saleh', inbox: 'outreach3@dxbpropvault.com', sentAt: '2025-06-07T10:10:00Z', status: 'delivered', opens: 0, step: 2 },
-    { id: 'sl10', to: 'sultan.almanei@outlook.com', toName: 'Sultan Al-Manei', inbox: 'outreach2@dxbpropvault.com', sentAt: '2025-06-06T10:00:00Z', status: 'replied', opens: 4, step: 1 },
-  ],
-  steps: [
-    { id: 's1', stepNumber: 1, subject: 'Maximize Your Dubai Marina Investment', waitDays: 0, sent: 2941, opened: 1294, replied: 318 },
-    { id: 's2', stepNumber: 2, subject: 'Following up – Marina property opportunity', waitDays: 3, sent: 1840, opened: 710, replied: 148 },
-    { id: 's3', stepNumber: 3, subject: 'Last note – quick question about your unit', waitDays: 5, sent: 920, opened: 294, replied: 52 },
-  ],
-  leads: [
-    { id: '1', email: 'ahmed.alrashidi@gmail.com', name: 'Ahmed Al-Rashidi', status: 'replied', lastActivity: '2025-06-09T08:22:00Z', step: 1 },
-    { id: '2', email: 'sara.almansoori@outlook.com', name: 'Sara Al-Mansoori', status: 'replied', lastActivity: '2025-06-09T07:45:00Z', step: 1 },
-    { id: '4', email: 'hind.alqasimi@outlook.com', name: 'Hind Al-Qasimi', status: 'replied', lastActivity: '2025-06-09T06:55:00Z', step: 1 },
-    { id: '6', email: 'nadia.karim@hotmail.com', name: 'Nadia Karim', status: 'replied', lastActivity: '2025-06-08T11:30:00Z', step: 1 },
-    { id: '8', email: 'layla.ahmed@gmail.com', name: 'Layla Ahmed', status: 'opened', lastActivity: '2025-06-08T09:10:00Z', step: 2 },
-    { id: '9', email: 'mariam.alketbi@gmail.com', name: 'Mariam Al-Ketbi', status: 'opened', lastActivity: '2025-06-07T14:30:00Z', step: 2 },
-    { id: '11', email: 'rima.saleh@gmail.com', name: 'Rima Saleh', status: 'sent', lastActivity: '2025-06-07T10:00:00Z', step: 2 },
-    { id: '13', email: 'dalal.alshehhi@gmail.com', name: 'Dalal Al-Shehhi', status: 'sent', lastActivity: '2025-06-06T09:00:00Z', step: 3 },
-    { id: '7', email: 'hassan.ibrahim@gmail.com', name: 'Hassan Ibrahim', status: 'bounced', lastActivity: '2025-06-05T14:00:00Z', step: 1 },
-    { id: '15', email: 'sultan.almanei@outlook.com', name: 'Sultan Al-Manei', status: 'replied', lastActivity: '2025-06-05T08:30:00Z', step: 1 },
-  ],
-}
-
-// ── state ───────────────────────────────────────────────────────────────
-const campaign = ref<Campaign>(MOCK_CAMPAIGN)
+const pageLoading = ref(true)
+const notFound = ref(false)
+const campaign = ref<Campaign | null>(null)
+const templateSteps = ref<CampaignTemplateStep[]>([])
+const templateDetails = ref<Map<string, EmailTemplate>>(new Map())
 const activeTab = ref('overview')
+const actionLoading = ref(false)
+
+onMounted(async () => {
+  try {
+    const id = route.params.id as string
+    const [c, steps] = await Promise.all([getCampaign(id), getCampaignTemplates(id)])
+    campaign.value = c
+    templateSteps.value = steps
+    // Load template details in parallel
+    const details = await Promise.allSettled(steps.map(s => getTemplate(s.template_id)))
+    details.forEach((res, i) => {
+      if (res.status === 'fulfilled') {
+        templateDetails.value.set(steps[i]!.template_id, res.value)
+      }
+    })
+  }
+  catch (e: any) {
+    if (e?.status === 404 || e?.statusCode === 404) notFound.value = true
+  }
+  finally {
+    pageLoading.value = false
+  }
+})
 
 const tabs = [
   { label: 'Overview', value: 'overview', icon: 'i-lucide-layout-dashboard' },
+  { label: 'Sequence', value: 'sequence', icon: 'i-lucide-git-branch' },
   { label: 'Contacts', value: 'contacts', icon: 'i-lucide-users' },
   { label: 'Sent Log', value: 'sentlog', icon: 'i-lucide-send' },
-  { label: 'Sequence', value: 'sequence', icon: 'i-lucide-git-branch' },
   { label: 'Settings', value: 'settings', icon: 'i-lucide-settings' },
 ]
 
-const sentLogColumns: TableColumn<SentLogEntry>[] = [
-  { id: 'recipient', header: 'Recipient' },
-  { id: 'inbox', header: 'Inbox' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'opens', header: 'Opens' },
-  { id: 'step', header: 'Step' },
-  { id: 'sentAt', header: 'Sent' },
-]
-
-const SENT_STATUS_COLOR: Record<string, BadgeColor> = {
-  replied: 'success', opened: 'info', delivered: 'neutral', bounced: 'error', failed: 'error',
-}
-function sentStatusColor(s: string): BadgeColor { return (SENT_STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
-
 // ── computed ─────────────────────────────────────────────────────────────
-const openRate = computed(() => campaign.value.sent ? ((campaign.value.opened / campaign.value.sent) * 100).toFixed(1) : '0')
-const replyRate = computed(() => campaign.value.sent ? ((campaign.value.replied / campaign.value.sent) * 100).toFixed(1) : '0')
-const bounceRate = computed(() => campaign.value.sent ? ((campaign.value.bounced / campaign.value.sent) * 100).toFixed(1) : '0')
-const progress = computed(() => campaign.value.contacts ? Math.round((campaign.value.sent / campaign.value.contacts) * 100) : 0)
+const openRate = computed(() => {
+  if (!campaign.value?.total_sent) return '0'
+  return ((campaign.value.total_opened / campaign.value.total_sent) * 100).toFixed(1)
+})
+const replyRate = computed(() => {
+  if (!campaign.value?.total_sent) return '0'
+  return ((campaign.value.total_replied / campaign.value.total_sent) * 100).toFixed(1)
+})
+const bounceRate = computed(() => {
+  if (!campaign.value?.total_sent) return '0'
+  return ((campaign.value.total_bounced / campaign.value.total_sent) * 100).toFixed(1)
+})
+const progress = computed(() => {
+  if (!campaign.value) return 0
+  const denom = campaign.value.actual_audience_size ?? campaign.value.total_contacts
+  if (!denom) return 0
+  return Math.min(100, Math.round((campaign.value.total_sent / denom) * 100))
+})
 
-// ── columns ───────────────────────────────────────────────────────────────
-const leadColumns: TableColumn<RecentLead>[] = [
-  { accessorKey: 'name', header: 'Contact' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'step', header: 'Step' },
-  { accessorKey: 'lastActivity', header: 'Last Activity' },
-]
-
-// ── helpers ───────────────────────────────────────────────────────────────
+// ── status helpers ───────────────────────────────────────────────────────
 type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
 
-const CAMPAIGN_STATUS_COLOR: Record<string, BadgeColor> = {
-  active: 'success', paused: 'warning', draft: 'neutral', completed: 'info', error: 'error',
+const STATUS_COLOR: Record<string, BadgeColor> = {
+  running: 'success', paused: 'warning', draft: 'neutral', completed: 'info', archived: 'neutral', scheduled: 'info',
 }
-const LEAD_STATUS_COLOR: Record<string, BadgeColor> = {
-  replied: 'success', opened: 'info', sent: 'neutral', bounced: 'error',
-}
-
-function cStatusColor(s: string): BadgeColor { return (CAMPAIGN_STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
-function leadStatusColor(s: string): BadgeColor { return (LEAD_STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
+function statusColor(s: string): BadgeColor { return (STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
+function displayStatus(s: string) { return s === 'running' ? 'active' : s }
 
 function pct(num: number, den: number) {
   if (!den) return '—'
   return `${((num / den) * 100).toFixed(1)}%`
 }
 
-function relTime(ts: string) {
-  const diff = Date.now() - new Date(ts).getTime()
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
-  return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+function relDate(ts: string | null) {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-const maxSent = computed(() => Math.max(...campaign.value.dailySentData, 1))
-const maxReply = computed(() => Math.max(...campaign.value.dailyReplyData, 1))
-function barH(val: number, max: number, maxPx: number = 64): number {
-  return Math.round((val / max) * maxPx)
+function stepLabel(n: number) {
+  if (n === 1) return 'Initial email'
+  if (n === 2) return 'Follow-up'
+  return 'Closing email'
 }
 
-function toggleStatus() {
-  if (campaign.value.status === 'active') campaign.value.status = 'paused'
-  else if (campaign.value.status === 'paused') campaign.value.status = 'active'
+// ── actions ──────────────────────────────────────────────────────────────
+async function doStart() {
+  if (!campaign.value) return
+  actionLoading.value = true
+  try {
+    campaign.value = await startCampaign(campaign.value.id)
+    toast.add({ title: 'Campaign started', color: 'success', icon: 'i-lucide-play-circle' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to start', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally { actionLoading.value = false }
+}
+
+async function doPause() {
+  if (!campaign.value) return
+  actionLoading.value = true
+  try {
+    campaign.value = await pauseCampaign(campaign.value.id)
+    toast.add({ title: 'Campaign paused', color: 'neutral', icon: 'i-lucide-pause-circle' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to pause', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally { actionLoading.value = false }
+}
+
+async function doComplete() {
+  if (!campaign.value) return
+  actionLoading.value = true
+  try {
+    campaign.value = await completeCampaign(campaign.value.id)
+    toast.add({ title: 'Campaign marked complete', color: 'info', icon: 'i-lucide-check-circle' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally { actionLoading.value = false }
+}
+
+async function doArchive() {
+  if (!campaign.value) return
+  actionLoading.value = true
+  try {
+    campaign.value = await archiveCampaign(campaign.value.id)
+    toast.add({ title: 'Campaign archived', color: 'neutral', icon: 'i-lucide-archive' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally { actionLoading.value = false }
+}
+
+function fmtVar(v: string): string { return ['{{', v, '}}'].join('') }
+
+// ── edit modal ────────────────────────────────────────────────────────
+const editOpen = ref(false)
+const editSaving = ref(false)
+const editForm = reactive({
+  name: '',
+  description: '',
+  daily_volume_cap: 200,
+  ends_at: '',
+})
+
+function openEdit() {
+  if (!campaign.value) return
+  editForm.name = campaign.value.name
+  editForm.description = campaign.value.description ?? ''
+  editForm.daily_volume_cap = campaign.value.daily_volume_cap
+  editForm.ends_at = campaign.value.ends_at ? campaign.value.ends_at.slice(0, 10) : ''
+  editOpen.value = true
+}
+
+async function saveEdit() {
+  if (!campaign.value) return
+  editSaving.value = true
+  try {
+    const isDraft = campaign.value.status === 'draft'
+    const payload: Record<string, unknown> = {
+      daily_volume_cap: editForm.daily_volume_cap,
+      ends_at: editForm.ends_at || null,
+    }
+    if (isDraft) {
+      payload.name = editForm.name
+      payload.description = editForm.description || null
+    }
+    campaign.value = await updateCampaign(campaign.value.id, payload)
+    editOpen.value = false
+    toast.add({ title: 'Campaign updated', color: 'success', icon: 'i-lucide-check-circle' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Update failed', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally { editSaving.value = false }
 }
 </script>
 
 <template>
-  <div class="max-w-screen-xl mx-auto px-6 py-8">
+  <div class="max-w-7xl mx-auto px-6 py-8">
 
-    <!-- Back -->
     <NuxtLink to="/campaigns" class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-highlighted mb-6">
       <UIcon name="i-lucide-arrow-left" class="w-4 h-4" />
       Back to campaigns
     </NuxtLink>
 
-    <!-- Header -->
-    <div class="flex items-start justify-between mb-6 gap-4">
-      <div class="min-w-0">
-        <div class="flex items-center gap-3 mb-1">
-          <h1 class="text-2xl font-semibold text-highlighted truncate">{{ campaign.name }}</h1>
-          <UBadge :color="cStatusColor(campaign.status)" variant="subtle" class="capitalize shrink-0">
-            {{ campaign.status }}
-          </UBadge>
+    <div v-if="pageLoading" class="space-y-4">
+      <div class="h-8 w-72 bg-elevated rounded-lg animate-pulse" />
+      <div class="h-64 bg-elevated rounded-xl animate-pulse" />
+    </div>
+
+    <div v-else-if="notFound" class="text-center py-24">
+      <UIcon name="i-lucide-send" class="w-12 h-12 text-muted mx-auto mb-3" />
+      <p class="text-lg font-semibold text-highlighted mb-1">Campaign not found</p>
+      <NuxtLink to="/campaigns" class="text-sm text-primary hover:underline">Back to campaigns</NuxtLink>
+    </div>
+
+    <template v-else-if="campaign">
+
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-3 mb-1">
+            <h1 class="text-2xl font-semibold text-highlighted truncate">{{ campaign.name }}</h1>
+            <UBadge :color="statusColor(campaign.status)" variant="subtle" class="capitalize shrink-0">
+              {{ displayStatus(campaign.status) }}
+            </UBadge>
+          </div>
+          <p class="text-sm text-muted capitalize">
+            {{ campaign.campaign_type.replace('_', ' ') }} ·
+            {{ campaign.daily_volume_cap }} emails/day limit ·
+            <span v-if="campaign.started_at">Started {{ relDate(campaign.started_at) }}</span>
+            <span v-else>Not started</span>
+          </p>
         </div>
-        <p class="text-sm text-muted">
-          Started {{ campaign.startDate }} &middot; {{ campaign.inboxCount }} inboxes &middot; {{ campaign.dailySendLimit }} emails/day limit
-        </p>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <UButton
-          v-if="campaign.status === 'active'"
-          icon="i-lucide-pause"
-          color="neutral"
-          variant="subtle"
-          @click="toggleStatus"
-        >
-          Pause
-        </UButton>
-        <UButton
-          v-if="campaign.status === 'paused'"
-          icon="i-lucide-play"
-          @click="toggleStatus"
-        >
-          Resume
-        </UButton>
-        <UDropdownMenu :items="[[
-          { label: 'Duplicate', icon: 'i-lucide-copy' },
-          { label: 'Export leads', icon: 'i-lucide-download' },
-          { label: 'Delete campaign', icon: 'i-lucide-trash-2', color: 'error' as const },
-        ]]">
-          <UButton icon="i-lucide-more-horizontal" color="neutral" variant="subtle" />
-        </UDropdownMenu>
-      </div>
-    </div>
-
-    <!-- Tabs -->
-    <div class="flex gap-0 border-b border-default mb-6">
-      <button
-        v-for="tab in tabs"
-        :key="tab.value"
-        class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
-        :class="activeTab === tab.value
-          ? 'border-primary text-primary'
-          : 'border-transparent text-muted hover:text-highlighted'"
-        @click="activeTab = tab.value"
-      >
-        <UIcon :name="tab.icon" class="w-4 h-4" />
-        {{ tab.label }}
-      </button>
-    </div>
-
-    <!-- ══ OVERVIEW TAB ════════════════════════════════════════════════ -->
-    <template v-if="activeTab === 'overview'">
-
-      <!-- KPI cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <UCard>
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Sent</p>
-          <p class="text-3xl font-semibold text-highlighted tabular-nums">{{ campaign.sent.toLocaleString() }}</p>
-          <div class="mt-2">
-            <div class="flex justify-between text-xs text-muted mb-1">
-              <span>Progress</span><span>{{ progress }}%</span>
-            </div>
-            <div class="h-1.5 bg-elevated rounded-full overflow-hidden">
-              <div class="h-full bg-primary rounded-full" :style="{ width: `${progress}%` }" />
-            </div>
-          </div>
-        </UCard>
-        <UCard>
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Open Rate</p>
-          <p class="text-3xl font-semibold tabular-nums" :class="Number(openRate) >= 30 ? 'text-success-600' : Number(openRate) >= 15 ? 'text-warning-600' : 'text-error-600'">
-            {{ openRate }}%
-          </p>
-          <p class="text-xs text-muted mt-1">{{ campaign.opened.toLocaleString() }} opened</p>
-        </UCard>
-        <UCard>
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Reply Rate</p>
-          <p class="text-3xl font-semibold tabular-nums" :class="Number(replyRate) >= 8 ? 'text-success-600' : Number(replyRate) >= 3 ? 'text-warning-600' : 'text-muted'">
-            {{ replyRate }}%
-          </p>
-          <p class="text-xs text-muted mt-1">{{ campaign.replied.toLocaleString() }} replies</p>
-        </UCard>
-        <UCard>
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Bounce Rate</p>
-          <p class="text-3xl font-semibold tabular-nums" :class="Number(bounceRate) >= 5 ? 'text-error-600' : Number(bounceRate) >= 2 ? 'text-warning-600' : 'text-success-600'">
-            {{ bounceRate }}%
-          </p>
-          <p class="text-xs text-muted mt-1">{{ campaign.bounced.toLocaleString() }} bounced</p>
-        </UCard>
-      </div>
-
-      <!-- Charts row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-
-        <!-- Daily sends chart -->
-        <UCard>
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-sm font-semibold text-highlighted">Daily Sends</h3>
-              <p class="text-xs text-muted">Last 14 days</p>
-            </div>
-            <span class="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">{{ campaign.dailySendLimit }}/day limit</span>
-          </div>
-          <div class="flex items-end justify-between gap-1 h-16">
-            <div
-              v-for="(val, i) in campaign.dailySentData"
-              :key="i"
-              class="flex-1 bg-primary rounded-t-sm"
-              :style="{ height: `${barH(val, maxSent, 64)}px`, opacity: val === 0 ? 0.2 : 0.85 }"
-            />
-          </div>
-          <div class="flex justify-between text-xs text-muted mt-1">
-            <span>14d ago</span><span>Today</span>
-          </div>
-        </UCard>
-
-        <!-- Daily replies chart -->
-        <UCard>
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-sm font-semibold text-highlighted">Daily Replies</h3>
-              <p class="text-xs text-muted">Last 14 days</p>
-            </div>
-            <span class="text-xs font-medium text-success-600 bg-success-50 px-2 py-0.5 rounded">{{ campaign.replied }} total</span>
-          </div>
-          <div class="flex items-end justify-between gap-1 h-16">
-            <div
-              v-for="(val, i) in campaign.dailyReplyData"
-              :key="i"
-              class="flex-1 bg-success-500 rounded-t-sm"
-              :style="{ height: `${barH(val, maxReply, 64)}px`, opacity: val === 0 ? 0.15 : 0.85 }"
-            />
-          </div>
-          <div class="flex justify-between text-xs text-muted mt-1">
-            <span>14d ago</span><span>Today</span>
-          </div>
-        </UCard>
-
-      </div>
-
-      <!-- Step performance -->
-      <UCard>
-        <h3 class="text-sm font-semibold text-highlighted mb-4">Sequence Performance</h3>
-        <div class="space-y-3">
-          <div
-            v-for="step in campaign.steps"
-            :key="step.id"
-            class="flex items-center gap-4 p-3 rounded-lg bg-elevated"
+        <div class="flex items-center gap-2 shrink-0">
+          <UButton
+            v-if="campaign.status === 'running'"
+            icon="i-lucide-pause"
+            color="neutral"
+            variant="subtle"
+            :loading="actionLoading"
+            @click="doPause"
           >
-            <div class="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-              {{ step.stepNumber }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-highlighted truncate">{{ step.subject }}</p>
-              <p class="text-xs text-muted">
-                {{ step.stepNumber === 1 ? 'Day 0 (immediate)' : `+${step.waitDays} days after previous` }}
-              </p>
-            </div>
-            <div class="flex gap-6 text-sm text-right shrink-0">
-              <div>
-                <p class="text-xs text-muted">Sent</p>
-                <p class="font-semibold text-default tabular-nums">{{ step.sent.toLocaleString() }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-muted">Opened</p>
-                <p class="font-semibold text-info-600 tabular-nums">{{ pct(step.opened, step.sent) }}</p>
-              </div>
-              <div>
-                <p class="text-xs text-muted">Replied</p>
-                <p class="font-semibold text-success-600 tabular-nums">{{ pct(step.replied, step.sent) }}</p>
-              </div>
-            </div>
-          </div>
+            Pause
+          </UButton>
+          <UButton
+            v-if="campaign.status === 'paused' || campaign.status === 'draft'"
+            icon="i-lucide-play"
+            :loading="actionLoading"
+            @click="doStart"
+          >
+            {{ campaign.status === 'draft' ? 'Launch' : 'Resume' }}
+          </UButton>
+          <UDropdownMenu :items="[[
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: openEdit },
+            { label: 'Mark complete', icon: 'i-lucide-check-circle', onSelect: doComplete, disabled: campaign.status === 'draft' || campaign.status === 'completed' || campaign.status === 'archived' },
+            { label: 'Archive', icon: 'i-lucide-archive', onSelect: doArchive, disabled: campaign.status === 'archived' },
+          ]]">
+            <UButton icon="i-lucide-more-horizontal" color="neutral" variant="subtle" />
+          </UDropdownMenu>
         </div>
-      </UCard>
+      </div>
 
-    </template>
-
-    <!-- ══ CONTACTS TAB ═════════════════════════════════════════════ -->
-    <template v-else-if="activeTab === 'contacts'">
-      <UCard :ui="{ body: 'p-0' }">
-        <UTable :data="campaign.leads" :columns="leadColumns">
-          <template #name-cell="{ row }">
-            <NuxtLink :to="`/contacts/${row.original.id}`" class="text-sm font-medium text-highlighted hover:text-primary">
-              {{ row.original.name }}
-            </NuxtLink>
-            <p class="text-xs text-muted">{{ row.original.email }}</p>
-          </template>
-          <template #status-cell="{ row }">
-            <UBadge :color="leadStatusColor(row.original.status)" variant="subtle" size="sm" class="capitalize">
-              {{ row.original.status }}
-            </UBadge>
-          </template>
-          <template #step-cell="{ row }">
-            <span class="text-sm text-muted">Step {{ row.original.step }}</span>
-          </template>
-          <template #lastActivity-cell="{ row }">
-            <span class="text-sm text-muted">{{ relTime(row.original.lastActivity) }}</span>
-          </template>
-        </UTable>
-      </UCard>
-    </template>
-
-    <!-- ══ SENT LOG TAB ═════════════════════════════════════════════ -->
-    <template v-else-if="activeTab === 'sentlog'">
-      <UCard :ui="{ body: 'p-0' }">
-        <UTable :data="campaign.sentLog" :columns="sentLogColumns">
-          <template #recipient-cell="{ row }">
-            <p class="text-sm font-medium text-highlighted">{{ row.original.toName }}</p>
-            <p class="text-xs text-muted font-mono">{{ row.original.to }}</p>
-          </template>
-          <template #inbox-cell="{ row }">
-            <p class="text-xs font-mono text-muted">{{ row.original.inbox }}</p>
-          </template>
-          <template #status-cell="{ row }">
-            <UBadge :color="sentStatusColor(row.original.status)" variant="subtle" size="sm" class="capitalize">
-              {{ row.original.status }}
-            </UBadge>
-          </template>
-          <template #opens-cell="{ row }">
-            <span class="text-sm" :class="row.original.opens > 0 ? 'text-info-600 font-medium' : 'text-muted'">
-              {{ row.original.opens > 0 ? row.original.opens : '—' }}
-            </span>
-          </template>
-          <template #step-cell="{ row }">
-            <span class="text-sm text-muted">Step {{ row.original.step }}</span>
-          </template>
-          <template #sentAt-cell="{ row }">
-            <span class="text-sm text-muted">{{ relTime(row.original.sentAt) }}</span>
-          </template>
-        </UTable>
-      </UCard>
-    </template>
-
-    <!-- ══ SEQUENCE TAB ════════════════════════════════════════════════ -->
-    <template v-else-if="activeTab === 'sequence'">
-      <div class="space-y-3">
-        <div
-          v-for="(step, i) in campaign.steps"
-          :key="step.id"
-          class="flex gap-4"
+      <!-- Tabs -->
+      <div class="flex gap-0 border-b border-default mb-6">
+        <button
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+          :class="activeTab === tab.value
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted hover:text-highlighted'"
+          @click="activeTab = tab.value"
         >
-          <!-- Connector line -->
-          <div class="flex flex-col items-center">
-            <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
-              {{ step.stepNumber }}
-            </div>
-            <div v-if="i < campaign.steps.length - 1" class="w-px flex-1 bg-border-default mt-1 mb-1 min-h-4" />
-          </div>
-          <!-- Card -->
-          <UCard class="flex-1 mb-3">
-            <div class="flex items-start justify-between gap-4">
-              <div class="flex-1">
-                <p class="text-sm font-semibold text-highlighted">{{ step.subject }}</p>
-                <p class="text-xs text-muted mt-0.5">
-                  <span v-if="step.stepNumber === 1">Sent immediately when contact enters campaign</span>
-                  <span v-else>Sent {{ step.waitDays }} days after Step {{ step.stepNumber - 1 }} (if no reply)</span>
-                </p>
+          <UIcon :name="tab.icon" class="w-4 h-4" />
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <!-- ══ OVERVIEW ══ -->
+      <template v-if="activeTab === 'overview'">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <UCard>
+            <p class="text-xs text-muted uppercase tracking-wide mb-1">Sent</p>
+            <p class="text-3xl font-semibold text-highlighted tabular-nums">{{ campaign.total_sent.toLocaleString() }}</p>
+            <div class="mt-2">
+              <div class="flex justify-between text-xs text-muted mb-1">
+                <span>Progress</span><span>{{ progress }}%</span>
               </div>
-              <div class="flex gap-4 text-sm text-right shrink-0">
-                <div><p class="text-xs text-muted">Open</p><p class="font-semibold text-info-600">{{ pct(step.opened, step.sent) }}</p></div>
-                <div><p class="text-xs text-muted">Reply</p><p class="font-semibold text-success-600">{{ pct(step.replied, step.sent) }}</p></div>
+              <div class="h-1.5 bg-elevated rounded-full overflow-hidden">
+                <div class="h-full bg-primary rounded-full" :style="{ width: `${progress}%` }" />
               </div>
             </div>
           </UCard>
+          <UCard>
+            <p class="text-xs text-muted uppercase tracking-wide mb-1">Open Rate</p>
+            <p
+              class="text-3xl font-semibold tabular-nums"
+              :class="Number(openRate) >= 30 ? 'text-success-600' : Number(openRate) >= 15 ? 'text-warning-600' : 'text-error-600'"
+            >
+              {{ openRate }}%
+            </p>
+            <p class="text-xs text-muted mt-1">{{ campaign.total_opened.toLocaleString() }} opened</p>
+          </UCard>
+          <UCard>
+            <p class="text-xs text-muted uppercase tracking-wide mb-1">Reply Rate</p>
+            <p
+              class="text-3xl font-semibold tabular-nums"
+              :class="Number(replyRate) >= 8 ? 'text-success-600' : Number(replyRate) >= 3 ? 'text-warning-600' : 'text-muted'"
+            >
+              {{ replyRate }}%
+            </p>
+            <p class="text-xs text-muted mt-1">{{ campaign.total_replied.toLocaleString() }} replies</p>
+          </UCard>
+          <UCard>
+            <p class="text-xs text-muted uppercase tracking-wide mb-1">Bounce Rate</p>
+            <p
+              class="text-3xl font-semibold tabular-nums"
+              :class="Number(bounceRate) >= 5 ? 'text-error-600' : Number(bounceRate) >= 2 ? 'text-warning-600' : 'text-success-600'"
+            >
+              {{ bounceRate }}%
+            </p>
+            <p class="text-xs text-muted mt-1">{{ campaign.total_bounced.toLocaleString() }} bounced</p>
+          </UCard>
         </div>
-        <!-- Add step placeholder -->
-        <div class="flex gap-4 opacity-50">
-          <div class="flex flex-col items-center">
-            <div class="w-8 h-8 rounded-full border-2 border-dashed border-default flex items-center justify-center">
-              <UIcon name="i-lucide-plus" class="w-4 h-4 text-muted" />
+
+        <!-- Campaign details -->
+        <UCard class="max-w-2xl">
+          <h3 class="text-sm font-semibold text-highlighted mb-4">Campaign details</h3>
+          <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Type</p>
+              <p class="text-default capitalize">{{ campaign.campaign_type.replace('_', ' ') }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Daily cap</p>
+              <p class="text-default">{{ campaign.daily_volume_cap.toLocaleString() }} emails</p>
+            </div>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Send window</p>
+              <p class="text-default">{{ campaign.send_window_start }} – {{ campaign.send_window_end }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Timezone</p>
+              <p class="text-default">{{ campaign.timezone }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Started</p>
+              <p class="text-default">{{ relDate(campaign.started_at) }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wide mb-0.5">Audience</p>
+              <p class="text-default">{{ (campaign.actual_audience_size ?? campaign.estimated_audience_size ?? 0).toLocaleString() }} contacts</p>
             </div>
           </div>
-          <div class="flex-1 border-2 border-dashed border-default rounded-xl px-4 py-3 text-sm text-muted cursor-not-allowed">
-            Add follow-up step
+        </UCard>
+      </template>
+
+      <!-- ══ SEQUENCE ══ -->
+      <template v-else-if="activeTab === 'sequence'">
+        <div v-if="templateSteps.length === 0" class="py-16 text-center">
+          <UIcon name="i-lucide-git-branch" class="w-10 h-10 text-muted mx-auto mb-3" />
+          <p class="text-sm font-semibold text-highlighted mb-1">No template steps</p>
+          <p class="text-xs text-muted">This campaign has no email sequence configured.</p>
+        </div>
+        <div v-else class="space-y-3">
+          <div
+            v-for="(step, i) in templateSteps"
+            :key="step.template_id"
+            class="flex gap-4"
+          >
+            <div class="flex flex-col items-center">
+              <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
+                {{ step.step_number }}
+              </div>
+              <div v-if="i < templateSteps.length - 1" class="w-px flex-1 bg-border-default mt-1 mb-1 min-h-4" />
+            </div>
+            <UCard class="flex-1 mb-3">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1">
+                  <p class="text-xs text-muted uppercase tracking-wide font-medium mb-0.5">{{ stepLabel(step.step_number) }}</p>
+                  <p class="text-sm font-semibold text-highlighted">
+                    {{ templateDetails.get(step.template_id)?.subject ?? 'Loading…' }}
+                  </p>
+                  <p class="text-xs text-muted mt-0.5">
+                    <span v-if="step.step_number === 1">Sent immediately when contact enters campaign</span>
+                    <span v-else>Sent {{ step.delay_days }}d after Step {{ step.step_number - 1 }} (if no reply)</span>
+                  </p>
+                </div>
+                <NuxtLink v-if="templateDetails.has(step.template_id)" :to="`/templates/${step.template_id}`">
+                  <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-external-link">View</UButton>
+                </NuxtLink>
+              </div>
+              <div v-if="templateDetails.get(step.template_id)?.required_variables.length" class="flex flex-wrap gap-1 mt-3">
+                <span
+                  v-for="v in templateDetails.get(step.template_id)!.required_variables"
+                  :key="v"
+                  class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-mono"
+                >
+                  {{ fmtVar(v) }}
+                </span>
+              </div>
+            </UCard>
           </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <!-- ══ SETTINGS TAB ════════════════════════════════════════════════ -->
-    <template v-else-if="activeTab === 'settings'">
-      <UCard class="max-w-2xl space-y-6">
-        <div class="grid grid-cols-2 gap-6">
-          <div>
-            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">From Name</label>
-            <UInput :model-value="campaign.fromName" readonly />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Reply-To</label>
-            <UInput :model-value="campaign.replyTo" readonly />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Daily Send Limit</label>
-            <UInput :model-value="String(campaign.dailySendLimit)" readonly />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Active Inboxes</label>
-            <UInput :model-value="String(campaign.inboxCount)" readonly />
-          </div>
+      <!-- ══ CONTACTS ══ -->
+      <template v-else-if="activeTab === 'contacts'">
+        <div class="py-16 text-center">
+          <UIcon name="i-lucide-users" class="w-10 h-10 text-muted mx-auto mb-3" />
+          <p class="text-sm font-semibold text-highlighted mb-1">Contact-level data not yet available</p>
+          <p class="text-xs text-muted">Per-contact campaign history will be shown here when the API is ready.</p>
         </div>
-        <p class="text-xs text-muted">Settings are read-only while the campaign is running. Pause the campaign to edit.</p>
-      </UCard>
-    </template>
+      </template>
 
+      <!-- ══ SENT LOG ══ -->
+      <template v-else-if="activeTab === 'sentlog'">
+        <div class="py-16 text-center">
+          <UIcon name="i-lucide-send" class="w-10 h-10 text-muted mx-auto mb-3" />
+          <p class="text-sm font-semibold text-highlighted mb-1">Sent log not yet available</p>
+          <p class="text-xs text-muted">Individual send events will appear here when the API is ready.</p>
+        </div>
+      </template>
+
+      <!-- ══ SETTINGS ══ -->
+      <template v-else-if="activeTab === 'settings'">
+        <UCard class="max-w-2xl space-y-6">
+          <div class="grid grid-cols-2 gap-6">
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Campaign name</label>
+              <UInput :model-value="campaign.name" readonly />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Type</label>
+              <UInput :model-value="campaign.campaign_type.replace('_', ' ')" readonly class="capitalize" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Daily send cap</label>
+              <UInput :model-value="String(campaign.daily_volume_cap)" readonly />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Max follow-ups</label>
+              <UInput :model-value="String(campaign.max_follow_ups)" readonly />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Send window</label>
+              <UInput :model-value="`${campaign.send_window_start} – ${campaign.send_window_end}`" readonly />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Timezone</label>
+              <UInput :model-value="campaign.timezone" readonly />
+            </div>
+          </div>
+          <p class="text-xs text-muted">Settings are read-only. To modify, pause the campaign first.</p>
+        </UCard>
+      </template>
+
+      <!-- Edit modal -->
+      <UModal v-model:open="editOpen">
+        <template #content>
+          <UCard class="max-w-md w-full">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-base font-semibold text-highlighted">Edit campaign</h3>
+                  <p class="text-xs text-muted mt-0.5">
+                    {{ campaign.status === 'draft' ? 'All fields editable while in draft.' : 'Only daily cap and end date can be changed while running.' }}
+                  </p>
+                </div>
+                <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" @click="editOpen = false" />
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <div v-if="campaign.status === 'draft'">
+                <label class="block text-sm font-medium text-highlighted mb-1.5">Name</label>
+                <UInput v-model="editForm.name" placeholder="Campaign name" />
+              </div>
+              <div v-if="campaign.status === 'draft'">
+                <label class="block text-sm font-medium text-highlighted mb-1.5">Description <span class="text-muted font-normal">(optional)</span></label>
+                <UInput v-model="editForm.description" placeholder="Internal notes…" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-highlighted mb-1.5">Daily volume cap</label>
+                <div class="flex items-center gap-2">
+                  <UInput v-model="editForm.daily_volume_cap" type="number" :min="1" :max="10000" class="w-32" />
+                  <span class="text-sm text-muted">emails / day</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-highlighted mb-1.5">End date <span class="text-muted font-normal">(optional)</span></label>
+                <UInput v-model="editForm.ends_at" type="date" />
+                <p class="text-xs text-muted mt-1">Leave blank for no end date.</p>
+              </div>
+              <UButton block :loading="editSaving" :disabled="!editForm.name.trim()" @click="saveEdit">
+                Save changes
+              </UButton>
+            </div>
+          </UCard>
+        </template>
+      </UModal>
+
+    </template>
   </div>
 </template>

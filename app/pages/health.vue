@@ -9,23 +9,36 @@ interface ReadinessResult {
   checks: Record<string, string>
 }
 
-const MOCK_LIVENESS: LivenessResult = { status: 'ok', service: 'email-outreach-api', env: 'development' }
-const MOCK_READINESS: ReadinessResult = { status: 'ok', checks: { database: 'ok', redis: 'ok', celery: 'ok' } }
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase as string
+const { authHeaders } = useAuth()
 
-const liveness = ref<LivenessResult>(MOCK_LIVENESS)
-const readiness = ref<ReadinessResult>(MOCK_READINESS)
+const liveness = ref<LivenessResult | null>(null)
+const readiness = ref<ReadinessResult | null>(null)
 const loading = ref(false)
-const lastChecked = ref<Date>(new Date())
+const lastChecked = ref<Date | null>(null)
 
-function check() {
+async function check() {
   loading.value = true
-  setTimeout(() => {
-    liveness.value = MOCK_LIVENESS
-    readiness.value = MOCK_READINESS
+  try {
+    const [l, r] = await Promise.all([
+      $fetch<LivenessResult>(`${apiBase}/health`),
+      $fetch<ReadinessResult>(`${apiBase}/health/ready`, { headers: authHeaders.value }),
+    ])
+    liveness.value = l
+    readiness.value = r
     lastChecked.value = new Date()
+  }
+  catch {
+    liveness.value = { status: 'error', service: 'unknown', env: 'unknown' }
+    readiness.value = { status: 'error', checks: {} }
+  }
+  finally {
     loading.value = false
-  }, 600)
+  }
 }
+
+onMounted(check)
 
 function statusColor(s: string) {
   if (s === 'ok') return 'success'

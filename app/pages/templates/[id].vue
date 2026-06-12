@@ -1,144 +1,139 @@
 <script setup lang="ts">
 const route = useRoute()
-const router = useRouter()
 const toast = useToast()
+const { getTemplate, updateTemplate, previewTemplate, getAllowedVariables } = useTemplates()
 
 const editorRef = ref<{ insertContent: (t: string) => void } | null>(null)
 
-// ── mock template data (keyed by id) ──────────────────────────────────
-const MOCK_TEMPLATES: Record<string, { name: string; category: 'initial' | 'follow_up' | 'closing'; subject: string; body: string }> = {
-  '1': {
-    name: 'Marina Q2 – Initial Outreach',
-    category: 'initial',
-    subject: 'Maximize Your Dubai Marina Investment',
-    body: `<p>Hi {{first_name}},</p><p>I hope this message finds you well. I noticed you own a beautiful unit at {{property_location}}, and given the current market conditions, there may be an excellent opportunity to maximize your rental yield or explore a profitable sale.</p><p>Our team specializes in Dubai Marina properties and we have qualified buyers actively looking in your area.</p><p>Would you be open to a quick 10-minute call this week?</p><p>Best regards,<br>DXB PropVault Team</p>`,
-  },
-  '2': {
-    name: 'Downtown Sellers – First Touch',
-    category: 'initial',
-    subject: 'Your Downtown Dubai Unit – Rental Opportunity',
-    body: `<p>Dear {{first_name}},</p><p>I'm reaching out regarding your property in Downtown Dubai. With strong rental demand continuing through 2025, your unit could command premium rates this season.</p><p>We offer full property management at competitive rates — from tenant sourcing to maintenance.</p><p>Would you be interested in a free rental valuation?</p><p>Warm regards,<br>DXB PropVault</p>`,
-  },
-  '3': {
-    name: 'Palm Jumeirah VIP Intro',
-    category: 'initial',
-    subject: 'Exclusive Buyer Interest – {{property_location}}',
-    body: `<p>Dear {{full_name}},</p><p>We have a high-net-worth client actively seeking luxury villas on Palm Jumeirah with a budget of AED 15–20M.</p><p>Given your portfolio in the area, I wanted to reach out exclusively before listing anything publicly.</p><p>Are you open to a confidential conversation?</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '4': {
-    name: 'General Follow-up #1',
-    category: 'follow_up',
-    subject: 'Following up – {{property_location}} property opportunity',
-    body: `<p>Hi {{first_name}},</p><p>I wanted to follow up on my previous message about your {{property_location}} unit.</p><p>The market has been moving quickly and I'd hate for you to miss out on a great opportunity. Even a 15-minute conversation could be valuable.</p><p>Are you free for a quick call this week?</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '5': {
-    name: 'Final Follow-up (Closing)',
-    category: 'closing',
-    subject: 'Last note – quick question about your {{property_location}} unit',
-    body: `<p>Hi {{first_name}},</p><p>I'll keep this short — I've reached out a couple of times about your property and don't want to keep bothering you if the timing isn't right.</p><p>If you're ever thinking of selling or renting your {{property_location}} unit, we'd love to help. Just reply to this email and we'll take it from there.</p><p>No pressure at all.</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '6': {
-    name: 'JBR Market Update',
-    category: 'initial',
-    subject: 'JBR Market Update – Your Unit Could Be Worth More',
-    body: `<p>Dear {{first_name}},</p><p>The JBR market has seen a 12% appreciation in Q1 2025. Your unit at {{unit_number}} may have increased significantly in value since your last appraisal.</p><p>I'd love to share a no-obligation market report — no commitment required.</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '7': {
-    name: 'Tenant Upgrade Program',
-    category: 'initial',
-    subject: 'Upgrade Your Living – Premium Units Available',
-    body: `<p>Hi {{first_name}},</p><p>We have exclusive listings for tenants looking to upgrade their living situation in Dubai's best communities.</p><p>Whether you're looking for more space, a better location, or a nicer building, we have options across Dubai Marina, Downtown, JBR, and Business Bay.</p><p>Interested in a no-obligation property tour?</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '8': {
-    name: 'GCC Remote Investor',
-    category: 'initial',
-    subject: 'Remote Property Management – Your Dubai Investment',
-    body: `<p>Dear {{full_name}},</p><p>Managing a Dubai property from {{country}} doesn't have to be stressful. Our remote management service handles everything — tenant screening, rent collection, maintenance coordination, and monthly reporting.</p><p>All accessible from your phone or laptop, no matter where you are.</p><p>Would a 15-minute intro call work for you?</p><p>Best,<br>DXB PropVault</p>`,
-  },
-  '9': {
-    name: 'Follow-up with Valuation Offer',
-    category: 'follow_up',
-    subject: 'Free valuation for your {{property_location}} property',
-    body: `<p>Hi {{first_name}},</p><p>Following up with a specific offer: a free, no-obligation valuation for your unit at {{property_location}}.</p><p>Knowing your property's current market value takes 24 hours and costs you nothing. It's worth knowing even if you're not planning to sell.</p><p>Shall I go ahead?</p><p>Best,<br>DXB PropVault</p>`,
-  },
-}
-
-// ── state ─────────────────────────────────────────────────────────────
-const id = route.params.id as string
-const source = MOCK_TEMPLATES[id]
-const notFound = !source
+const pageLoading = ref(true)
+const notFound = ref(false)
+const source = ref<{ name: string; subject: string; body_html: string; step_number: number; campaign_type: string } | null>(null)
 
 const form = reactive({
-  name: source?.name ?? '',
-  category: (source?.category ?? 'initial') as 'initial' | 'follow_up' | 'closing',
-  subject: source?.subject ?? '',
-  body: source?.body ?? '',
+  name: '',
+  subject: '',
+  body: '',
+})
+
+onMounted(async () => {
+  try {
+    const [t, vars] = await Promise.allSettled([
+      getTemplate(route.params.id as string),
+      getAllowedVariables(),
+    ])
+    if (t.status === 'fulfilled') {
+      source.value = { name: t.value.name, subject: t.value.subject, body_html: t.value.body_html, step_number: t.value.step_number, campaign_type: t.value.campaign_type }
+      form.name = t.value.name
+      form.subject = t.value.subject
+      form.body = t.value.body_html
+    }
+    else {
+      if ((t.reason as any)?.status === 404 || (t.reason as any)?.statusCode === 404) notFound.value = true
+    }
+    if (vars.status === 'fulfilled') allowedVars.value = vars.value
+  }
+  finally {
+    pageLoading.value = false
+  }
 })
 
 const saving = ref(false)
 const previewOpen = ref(false)
 const hasChanges = ref(false)
+const previewLoading = ref(false)
+const previewHtml = ref('')
+const previewSubjectText = ref('')
 
 watch(form, () => { hasChanges.value = true }, { deep: true })
 
-// ── options ───────────────────────────────────────────────────────────
-const CATEGORIES = [
-  { label: 'Initial email', value: 'initial' },
-  { label: 'Follow-up', value: 'follow_up' },
-  { label: 'Closing email', value: 'closing' },
-]
-
-const VARIABLES = [
-  { label: 'First name', value: '{{first_name}}' },
-  { label: 'Full name', value: '{{full_name}}' },
-  { label: 'Email', value: '{{email}}' },
-  { label: 'Location', value: '{{property_location}}' },
-  { label: 'Unit #', value: '{{unit_number}}' },
-  { label: 'Value', value: '{{property_value}}' },
-  { label: 'Country', value: '{{country}}' },
-]
+const LABEL_MAP: Record<string, string> = {
+  first_name: 'First name', full_name: 'Full name', email: 'Email',
+  property_location: 'Location', unit_number: 'Unit #',
+  property_value: 'Value', country: 'Country',
+}
+function varLabel(v: string) {
+  return LABEL_MAP[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+}
+const allowedVars = ref<string[]>([])
+const VARIABLES = computed(() => allowedVars.value.map(v => ({ label: varLabel(v), value: `{{${v}}}` })))
 
 const SAMPLE: Record<string, string> = {
-  '{{first_name}}': 'Ahmed',
-  '{{full_name}}': 'Ahmed Al-Rashidi',
-  '{{email}}': 'ahmed.alrashidi@gmail.com',
-  '{{property_location}}': 'Dubai Marina',
-  '{{unit_number}}': '2204',
-  '{{property_value}}': 'AED 2,800,000',
-  '{{country}}': 'UAE',
+  first_name: 'Ahmed',
+  full_name: 'Ahmed Al-Rashidi',
+  email: 'ahmed.alrashidi@gmail.com',
+  property_location: 'Dubai Marina',
+  unit_number: '2204',
+  property_value: 'AED 2,800,000',
+  country: 'UAE',
 }
 
-const previewBody = computed(() => {
-  let html = form.body
-  for (const [key, val] of Object.entries(SAMPLE)) {
-    html = html.replaceAll(key, `<mark class="bg-primary/20 text-primary rounded px-0.5">${val}</mark>`)
-  }
-  return html
-})
+function stepLabel(n: number) {
+  if (n === 1) return 'Initial email'
+  if (n === 2) return 'Follow-up'
+  return 'Closing email'
+}
 
-const previewSubject = computed(() => {
-  let s = form.subject
-  for (const [key, val] of Object.entries(SAMPLE)) s = s.replaceAll(key, val)
-  return s
-})
+async function openPreview() {
+  previewOpen.value = true
+  previewLoading.value = true
+  try {
+    const res = await previewTemplate(route.params.id as string, SAMPLE)
+    previewHtml.value = res.body_html
+    previewSubjectText.value = res.subject
+  }
+  catch {
+    let html = form.body
+    let subj = form.subject
+    for (const [k, v] of Object.entries(SAMPLE)) {
+      const tag = `<mark class="bg-primary/20 text-primary rounded px-0.5">${v}</mark>`
+      html = html.replaceAll(`{{${k}}}`, tag)
+      subj = subj.replaceAll(`{{${k}}}`, v)
+    }
+    previewHtml.value = html
+    previewSubjectText.value = subj
+  }
+  finally {
+    previewLoading.value = false
+  }
+}
 
 const canSave = computed(() => form.name.trim() && form.subject.trim() && form.body.trim())
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+}
 
 async function save() {
   if (!canSave.value) return
   saving.value = true
-  await new Promise(r => setTimeout(r, 700))
-  saving.value = false
-  hasChanges.value = false
-  toast.add({ title: 'Template saved', description: `"${form.name}" has been updated.`, color: 'success', icon: 'i-lucide-check-circle' })
+  try {
+    await updateTemplate(route.params.id as string, {
+      name: form.name,
+      subject: form.subject,
+      body_html: form.body,
+      body_text: stripHtml(form.body),
+    })
+    hasChanges.value = false
+    if (source.value) {
+      source.value.name = form.name
+      source.value.subject = form.subject
+      source.value.body_html = form.body
+    }
+    toast.add({ title: 'Template saved', description: `"${form.name}" updated.`, color: 'success', icon: 'i-lucide-check-circle' })
+  }
+  catch (e: any) {
+    toast.add({ title: 'Save failed', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally {
+    saving.value = false
+  }
 }
 
 function discard() {
-  if (!source) return
-  form.name = source.name
-  form.category = source.category
-  form.subject = source.subject
-  form.body = source.body
+  if (!source.value) return
+  form.name = source.value.name
+  form.subject = source.value.subject
+  form.body = source.value.body_html
   hasChanges.value = false
 }
 </script>
@@ -146,45 +141,44 @@ function discard() {
 <template>
   <div class="max-w-4xl mx-auto px-6 py-8">
 
-    <!-- Back -->
     <NuxtLink to="/templates" class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-highlighted mb-6">
       <UIcon name="i-lucide-arrow-left" class="w-4 h-4" />
       Back to templates
     </NuxtLink>
 
-    <!-- Not found -->
-    <div v-if="notFound" class="text-center py-24">
+    <div v-if="pageLoading" class="space-y-4">
+      <div class="h-8 w-72 bg-elevated rounded-lg animate-pulse" />
+      <div class="h-64 bg-elevated rounded-xl animate-pulse" />
+    </div>
+
+    <div v-else-if="notFound" class="text-center py-24">
       <UIcon name="i-lucide-file-x" class="w-12 h-12 text-muted mx-auto mb-3" />
       <p class="text-lg font-semibold text-highlighted mb-1">Template not found</p>
       <NuxtLink to="/templates" class="text-sm text-primary hover:underline">Back to templates</NuxtLink>
     </div>
 
     <template v-else>
-      <!-- Header -->
       <div class="flex items-center justify-between mb-6 gap-4">
         <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-highlighted truncate">{{ form.name || 'Untitled template' }}</h1>
-          <p v-if="hasChanges" class="text-xs text-warning-600 mt-0.5 flex items-center gap-1">
-            <UIcon name="i-lucide-circle-dot" class="w-3 h-3" />
-            Unsaved changes
-          </p>
+          <div class="flex items-center gap-2 mt-0.5">
+            <p v-if="source" class="text-xs text-muted">
+              {{ stepLabel(source.step_number) }} · {{ source.campaign_type.replace('_', ' ') }}
+            </p>
+            <p v-if="hasChanges" class="text-xs text-warning-600 flex items-center gap-1">
+              <UIcon name="i-lucide-circle-dot" class="w-3 h-3" />
+              Unsaved changes
+            </p>
+          </div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <UButton
-            v-if="hasChanges"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="discard"
-          >
-            Discard
-          </UButton>
+          <UButton v-if="hasChanges" color="neutral" variant="ghost" size="sm" @click="discard">Discard</UButton>
           <UButton
             icon="i-lucide-eye"
             color="neutral"
             variant="subtle"
             :disabled="!form.body.trim()"
-            @click="previewOpen = true"
+            @click="openPreview"
           >
             Preview
           </UButton>
@@ -201,7 +195,6 @@ function discard() {
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left: meta + variables -->
         <div class="space-y-4">
           <UCard class="space-y-4">
             <h3 class="text-sm font-semibold text-highlighted">Template info</h3>
@@ -211,18 +204,13 @@ function discard() {
               <UInput v-model="form.name" placeholder="Template name" />
             </div>
 
-            <div>
-              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Category</label>
-              <USelect
-                v-model="form.category"
-                :items="CATEGORIES"
-                value-key="value"
-                label-key="label"
-              />
+            <div v-if="source">
+              <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Type</label>
+              <p class="text-sm text-default">{{ stepLabel(source.step_number) }}</p>
+              <p class="text-xs text-muted mt-0.5 capitalize">{{ source.campaign_type.replace('_', ' ') }} · not editable after creation</p>
             </div>
           </UCard>
 
-          <!-- Variable buttons -->
           <UCard class="space-y-3">
             <div>
               <h3 class="text-sm font-semibold text-highlighted mb-0.5">Insert variable</h3>
@@ -242,16 +230,11 @@ function discard() {
           </UCard>
         </div>
 
-        <!-- Right: subject + body editor -->
         <div class="lg:col-span-2 space-y-4">
-
           <UCard class="space-y-4">
             <div>
               <label class="block text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Subject line</label>
-              <UInput
-                v-model="form.subject"
-                placeholder="e.g. Maximize Your {{property_location}} Investment"
-              />
+              <UInput v-model="form.subject" placeholder="e.g. Maximize Your {{property_location}} Investment" />
             </div>
           </UCard>
 
@@ -264,10 +247,9 @@ function discard() {
               min-height="320px"
             />
             <p class="text-xs text-muted">
-              Formatting is preserved in HTML. Variables in <span class="font-mono text-primary">&#123;&#123;variable&#125;&#125;</span> are replaced when emails are sent.
+              Variables in <span class="font-mono text-primary">&#123;&#123;variable&#125;&#125;</span> are replaced when emails are sent.
             </p>
           </UCard>
-
         </div>
       </div>
 
@@ -285,14 +267,18 @@ function discard() {
               </div>
             </template>
 
-            <div class="space-y-4">
+            <div v-if="previewLoading" class="space-y-3 py-4">
+              <div class="h-8 bg-elevated rounded animate-pulse" />
+              <div class="h-40 bg-elevated rounded animate-pulse" />
+            </div>
+            <div v-else class="space-y-4">
               <div class="bg-elevated rounded-lg px-4 py-3">
                 <p class="text-xs text-muted uppercase tracking-wide font-medium mb-1">Subject</p>
-                <p class="text-sm font-semibold text-highlighted">{{ previewSubject }}</p>
+                <p class="text-sm font-semibold text-highlighted">{{ previewSubjectText }}</p>
               </div>
               <div class="border-t border-default pt-4">
                 <!-- eslint-disable-next-line vue/no-v-html -->
-                <div class="text-sm text-default leading-relaxed preview-body" v-html="previewBody" />
+                <div class="text-sm text-default leading-relaxed preview-body" v-html="previewHtml" />
               </div>
             </div>
           </UCard>
