@@ -1,43 +1,123 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
-import type { Inbox } from '~/composables/useInboxes'
+import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
+import type { EmailAccountSummary } from '~/composables/useInboxes'
 
-const MOCK_INBOXES: Inbox[] = [
-  { id: '1', email: 'outreach1@dxbpropvault.com', display_name: 'DXB PropVault Outreach 1', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 94.5, daily_send_limit: 50, current_day_sent: 42, created_at: '2025-01-10T10:00:00Z' },
-  { id: '2', email: 'outreach2@dxbpropvault.com', display_name: 'DXB PropVault Outreach 2', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 88.2, daily_send_limit: 50, current_day_sent: 35, created_at: '2025-01-10T10:00:00Z' },
-  { id: '3', email: 'campaigns@propvault.ae', display_name: 'PropVault AE Campaigns', domain: 'propvault.ae', status: 'warming_up', deliverability_score: 72.0, daily_send_limit: 20, current_day_sent: 15, created_at: '2025-03-01T10:00:00Z' },
-  { id: '4', email: 'outreach3@dxbpropvault.com', display_name: 'DXB PropVault Outreach 3', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 91.8, daily_send_limit: 50, current_day_sent: 50, created_at: '2025-01-15T10:00:00Z' },
-  { id: '5', email: 'marina@propvault.ae', display_name: 'PropVault Marina', domain: 'propvault.ae', status: 'paused', deliverability_score: 55.0, daily_send_limit: 30, current_day_sent: 0, created_at: '2025-02-01T10:00:00Z' },
-  { id: '6', email: 'outreach4@dxbpropvault.com', display_name: 'DXB PropVault Outreach 4', domain: 'dxbpropvault.com', status: 'active', deliverability_score: 96.1, daily_send_limit: 50, current_day_sent: 28, created_at: '2025-01-20T10:00:00Z' },
-  { id: '7', email: 'leads@propvault.ae', display_name: 'PropVault Leads', domain: 'propvault.ae', status: 'auth_expired', deliverability_score: null, daily_send_limit: 50, current_day_sent: 0, created_at: '2025-02-10T10:00:00Z' },
-  { id: '8', email: 'outreach5@dxbpropvault.com', display_name: 'DXB PropVault Outreach 5', domain: 'dxbpropvault.com', status: 'warming_up', deliverability_score: 68.4, daily_send_limit: 15, current_day_sent: 10, created_at: '2025-04-01T10:00:00Z' },
-]
+const route = useRoute()
+const toast = useToast()
+const { inboxes, total, loading, listInboxes, pauseInbox, resumeInbox, retireInbox, watchInbox, startGoogleOAuth } = useInboxes()
 
-const inboxes = ref(MOCK_INBOXES)
-const loading = ref(false)
+// ── filters + pagination ──────────────────────────────────────────────
+const search = ref('')
+const statusFilter = ref('all')
+const page = ref(1)
+const pageSize = 50
 
-function connectInbox() {}
+async function load() {
+  await listInboxes({
+    page: page.value,
+    page_size: pageSize,
+    status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
+    search: search.value.trim() || undefined,
+  })
+}
 
+onMounted(async () => {
+  // Handle OAuth callback params
+  if (route.query.connected) {
+    toast.add({
+      title: 'Inbox connected',
+      description: `${route.query.connected} is now active.`,
+      color: 'success',
+      icon: 'i-lucide-check-circle',
+    })
+  }
+  if (route.query.error) {
+    toast.add({
+      title: 'Connection failed',
+      description: String(route.query.error),
+      color: 'error',
+      icon: 'i-lucide-x-circle',
+    })
+  }
+  await load()
+})
+
+watch([page, statusFilter], load)
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    page.value = 1
+    load()
+  }, 300)
+})
+
+// ── connect OAuth ─────────────────────────────────────────────────────
+const connecting = ref(false)
+
+async function connectInbox() {
+  connecting.value = true
+  try {
+    const url = await startGoogleOAuth()
+    window.location.href = url
+  }
+  catch (e: any) {
+    toast.add({ title: 'Failed to start connection', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+    connecting.value = false
+  }
+}
+
+// ── row actions ───────────────────────────────────────────────────────
+async function doAction(action: () => Promise<unknown>, successMsg: string) {
+  try {
+    await action()
+    toast.add({ title: successMsg, color: 'neutral', icon: 'i-lucide-check' })
+    await load()
+  }
+  catch (e: any) {
+    toast.add({ title: 'Action failed', description: e?.data?.detail ?? 'Error', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+}
+
+function rowActions(inbox: EmailAccountSummary): DropdownMenuItem[][] {
+  const items: DropdownMenuItem[] = [
+    { label: 'View details', icon: 'i-lucide-external-link', to: `/inboxes/${inbox.id}` },
+  ]
+  if (inbox.status === 'active' || inbox.status === 'warming_up') {
+    items.push({ label: 'Pause', icon: 'i-lucide-pause', onSelect: () => doAction(() => pauseInbox(inbox.id), 'Inbox paused') })
+  }
+  if (inbox.status === 'paused' || inbox.status === 'suspended') {
+    items.push({ label: 'Resume', icon: 'i-lucide-play', onSelect: () => doAction(() => resumeInbox(inbox.id), 'Inbox resumed') })
+  }
+  if (inbox.status !== 'retired') {
+    items.push({ label: 'Re-register watch', icon: 'i-lucide-rss', onSelect: () => doAction(() => watchInbox(inbox.id), 'Watch registered') })
+    items.push({ label: 'Retire', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => doAction(() => retireInbox(inbox.id), 'Inbox retired') })
+  }
+  return [items]
+}
+
+// ── stats ─────────────────────────────────────────────────────────────
 const stats = computed(() => [
-  { label: 'Total', value: inboxes.value.length, color: 'text-highlighted' },
-  { label: 'Active', value: inboxes.value.filter(i => i.status === 'active').length, color: 'text-success-500' },
-  { label: 'Warming', value: inboxes.value.filter(i => i.status === 'warming_up').length, color: 'text-warning-500' },
-  {
-    label: 'Paused',
-    value: inboxes.value.filter(i => ['paused', 'suspended', 'auth_expired', 'retired'].includes(i.status)).length,
-    color: 'text-muted',
-  },
+  { label: 'Total', value: total.value, color: 'text-highlighted', icon: 'i-lucide-mail' },
+  { label: 'Active', value: inboxes.value.filter(i => i.status === 'active').length, color: 'text-success-600', icon: 'i-lucide-check-circle' },
+  { label: 'Warming', value: inboxes.value.filter(i => i.status === 'warming_up').length, color: 'text-warning-600', icon: 'i-lucide-thermometer' },
+  { label: 'Paused / Issues', value: inboxes.value.filter(i => ['paused', 'suspended', 'auth_expired', 'retired'].includes(i.status)).length, color: 'text-muted', icon: 'i-lucide-pause-circle' },
 ])
 
-const columns: TableColumn<Inbox>[] = [
+// ── table ─────────────────────────────────────────────────────────────
+const columns: TableColumn<EmailAccountSummary>[] = [
   { accessorKey: 'email', header: 'Email Address' },
   { accessorKey: 'domain', header: 'Domain' },
   { accessorKey: 'status', header: 'Status' },
   { id: 'health', header: 'Health' },
   { id: 'usage', header: 'Daily Usage' },
+  { id: 'totalSent', header: 'Total Sent' },
   { id: 'connected', header: 'Connected' },
+  { id: 'actions', header: '' },
 ]
 
+// ── helpers ───────────────────────────────────────────────────────────
 type BadgeColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
 
 const STATUS_COLOR: Record<string, BadgeColor> = {
@@ -49,170 +129,170 @@ const STATUS_COLOR: Record<string, BadgeColor> = {
   retired: 'neutral',
 }
 
-function statusColor(status: string): BadgeColor {
-  return (STATUS_COLOR[status] ?? 'neutral') as BadgeColor
-}
+function statusColor(s: string): BadgeColor { return (STATUS_COLOR[s] ?? 'neutral') as BadgeColor }
+function statusLabel(s: string): string { return s.replace(/_/g, ' ') }
 
-function statusLabel(status: string) {
-  return status.replace(/_/g, ' ')
-}
-
-function healthTextColor(score: number | null) {
+function healthTextColor(score: number | null): string {
   if (score === null) return 'text-muted'
-  if (score >= 80) return 'text-success-500'
-  if (score >= 60) return 'text-warning-500'
-  return 'text-error-500'
+  if (score >= 80) return 'text-success-600'
+  if (score >= 60) return 'text-warning-600'
+  return 'text-error-600'
 }
 
-function relativeTime(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const diff = Date.now() - new Date(dateStr).getTime()
+function usagePct(sent: number, limit: number): number {
+  if (!limit) return 0
+  return Math.min(100, Math.round((sent / limit) * 100))
+}
+
+function relDate(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
   const days = Math.floor(diff / 86_400_000)
   if (days === 0) return 'Today'
   if (days === 1) return 'Yesterday'
-  if (days < 30) return `${days} days ago`
+  if (days < 30) return `${days}d ago`
   const months = Math.floor(days / 30)
   return months === 1 ? '1 month ago' : `${months} months ago`
 }
 
-function usagePct(sent: number, limit: number): number {
-  if (limit === 0) return 0
-  return Math.min(100, Math.round((sent / limit) * 100))
-}
+const STATUS_FILTER_OPTIONS = [
+  { label: 'All', value: 'all' },
+  { label: 'Active', value: 'active' },
+  { label: 'Warming up', value: 'warming_up' },
+  { label: 'Paused', value: 'paused' },
+  { label: 'Auth expired', value: 'auth_expired' },
+  { label: 'Retired', value: 'retired' },
+]
 </script>
 
 <template>
-  <div class="min-h-screen bg-muted">
-    <div class="max-w-7xl mx-auto px-6 py-8">
+  <div class="max-w-7xl mx-auto px-6 py-8">
 
-      <!-- Page header -->
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h1 class="text-2xl font-semibold text-highlighted">
-            Email Inboxes
-          </h1>
-          <p class="mt-1 text-sm text-muted">
-            Manage your connected Gmail accounts
-          </p>
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-semibold text-highlighted">Email Inboxes</h1>
+        <p class="mt-0.5 text-sm text-muted">{{ total }} connected Gmail accounts</p>
+      </div>
+      <UButton icon="i-lucide-plus" :loading="connecting" @click="connectInbox">
+        Connect inbox
+      </UButton>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <UCard v-for="stat in stats" :key="stat.label">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
+            <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
+          </div>
+          <div>
+            <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
+            <p class="text-xs text-muted">{{ stat.label }}</p>
+          </div>
         </div>
+      </UCard>
+    </div>
+
+    <!-- Filters -->
+    <div class="flex items-center gap-3 mb-4 flex-wrap">
+      <UInput v-model="search" icon="i-lucide-search" placeholder="Search by email or domain…" class="max-w-xs" />
+      <div class="flex gap-1 flex-wrap">
         <UButton
-          icon="i-lucide-plus"
-          :loading="loading"
-          @click="connectInbox"
+          v-for="opt in STATUS_FILTER_OPTIONS"
+          :key="opt.value"
+          size="sm"
+          :color="statusFilter === opt.value ? 'primary' : 'neutral'"
+          :variant="statusFilter === opt.value ? 'solid' : 'ghost'"
+          @click="statusFilter = opt.value"
         >
-          Connect inbox
+          {{ opt.label }}
         </UButton>
       </div>
-
-      <!-- Stats row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <UCard
-          v-for="stat in stats"
-          :key="stat.label"
-          class="text-center"
-        >
-          <p class="text-xs font-medium text-muted uppercase tracking-wide mb-1">
-            {{ stat.label }}
-          </p>
-          <p class="text-3xl font-semibold" :class="stat.color">
-            {{ stat.value }}
-          </p>
-        </UCard>
-      </div>
-
-      <!-- Empty state -->
-      <template v-if="!loading && inboxes.length === 0">
-        <UCard class="flex flex-col items-center justify-center py-24">
-          <div class="w-16 h-16 rounded-full bg-primary-50 flex items-center justify-center mb-5">
-            <UIcon name="i-lucide-mail" class="w-8 h-8 text-primary" />
-          </div>
-          <h3 class="text-lg font-semibold text-highlighted mb-2">
-            No inboxes connected yet
-          </h3>
-          <p class="text-sm text-muted text-center max-w-xs mb-7">
-            Connect a Gmail account to start sending cold emails from your own inbox.
-          </p>
-          <UButton icon="i-lucide-plus" size="lg" @click="connectInbox">
-            Connect your first inbox
-          </UButton>
-        </UCard>
-      </template>
-
-      <!-- Inboxes table -->
-      <template v-else>
-        <UCard :ui="{ body: 'p-0' }">
-          <UTable :data="inboxes" :columns="columns" :loading="loading">
-
-            <!-- Email + display name -->
-            <template #email-cell="{ row }">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                  <UIcon name="i-simple-icons-gmail" class="w-4 h-4 text-red-500" />
-                </div>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-highlighted truncate">
-                    {{ row.original.email }}
-                  </p>
-                  <p class="text-xs text-muted truncate">
-                    {{ row.original.display_name }}
-                  </p>
-                </div>
-              </div>
-            </template>
-
-            <!-- Domain -->
-            <template #domain-cell="{ row }">
-              <span class="text-sm text-default">{{ row.original.domain }}</span>
-            </template>
-
-            <!-- Status badge -->
-            <template #status-cell="{ row }">
-              <UBadge :color="statusColor(row.original.status)" variant="subtle" class="capitalize">
-                {{ statusLabel(row.original.status) }}
-              </UBadge>
-            </template>
-
-            <!-- Health score -->
-            <template #health-cell="{ row }">
-              <span
-                class="text-sm font-semibold tabular-nums"
-                :class="healthTextColor(row.original.deliverability_score)"
-              >
-                {{ row.original.deliverability_score != null
-                  ? row.original.deliverability_score.toFixed(0)
-                  : '—' }}
-              </span>
-            </template>
-
-            <!-- Daily usage progress -->
-            <template #usage-cell="{ row }">
-              <div class="w-32">
-                <div class="flex justify-between text-xs text-muted mb-1">
-                  <span class="tabular-nums">
-                    {{ row.original.current_day_sent }} / {{ row.original.daily_send_limit }}
-                  </span>
-                  <span>{{ usagePct(row.original.current_day_sent, row.original.daily_send_limit) }}%</span>
-                </div>
-                <div class="h-1.5 bg-elevated rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-primary rounded-full transition-all duration-300"
-                    :style="{
-                      width: `${usagePct(row.original.current_day_sent, row.original.daily_send_limit)}%`,
-                    }"
-                  />
-                </div>
-              </div>
-            </template>
-
-            <!-- Connected (relative date) -->
-            <template #connected-cell="{ row }">
-              <span class="text-sm text-muted">{{ relativeTime(row.original.created_at) }}</span>
-            </template>
-
-          </UTable>
-        </UCard>
-      </template>
-
     </div>
+
+    <!-- Table -->
+    <UCard :ui="{ body: 'p-0' }">
+      <UTable :data="inboxes" :columns="columns" :loading="loading">
+
+        <template #email-cell="{ row }">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+              <UIcon name="i-lucide-mail" class="w-4 h-4 text-red-500" />
+            </div>
+            <div class="min-w-0">
+              <NuxtLink :to="`/inboxes/${row.original.id}`" class="text-sm font-medium text-highlighted hover:text-primary truncate">
+                {{ row.original.email }}
+              </NuxtLink>
+              <p class="text-xs text-muted truncate">{{ row.original.display_name }}</p>
+            </div>
+          </div>
+        </template>
+
+        <template #domain-cell="{ row }">
+          <span class="text-sm text-default">{{ row.original.domain }}</span>
+        </template>
+
+        <template #status-cell="{ row }">
+          <UBadge :color="statusColor(row.original.status)" variant="subtle" class="capitalize">
+            {{ statusLabel(row.original.status) }}
+          </UBadge>
+        </template>
+
+        <template #health-cell="{ row }">
+          <span class="text-sm font-semibold tabular-nums" :class="healthTextColor(row.original.deliverability_score)">
+            {{ row.original.deliverability_score != null ? Number(row.original.deliverability_score).toFixed(0) + '%' : '—' }}
+          </span>
+        </template>
+
+        <template #usage-cell="{ row }">
+          <div class="w-32">
+            <div class="flex justify-between text-xs text-muted mb-1">
+              <span class="tabular-nums">{{ row.original.current_day_sent }} / {{ row.original.daily_send_limit }}</span>
+              <span>{{ usagePct(row.original.current_day_sent, row.original.daily_send_limit) }}%</span>
+            </div>
+            <div class="h-1.5 bg-elevated rounded-full overflow-hidden">
+              <div
+                class="h-full bg-primary rounded-full transition-all"
+                :style="{ width: `${usagePct(row.original.current_day_sent, row.original.daily_send_limit)}%` }"
+              />
+            </div>
+          </div>
+        </template>
+
+        <template #totalSent-cell="{ row }">
+          <span class="text-sm tabular-nums text-muted">{{ row.original.total_sent.toLocaleString() }}</span>
+        </template>
+
+        <template #connected-cell="{ row }">
+          <span class="text-sm text-muted">{{ relDate(row.original.created_at) }}</span>
+        </template>
+
+        <template #actions-cell="{ row }">
+          <UDropdownMenu :items="rowActions(row.original)">
+            <UButton icon="i-lucide-more-horizontal" color="neutral" variant="ghost" size="xs" />
+          </UDropdownMenu>
+        </template>
+
+      </UTable>
+
+      <div v-if="!loading && inboxes.length === 0" class="py-20 text-center">
+        <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <UIcon name="i-lucide-mail" class="w-7 h-7 text-primary" />
+        </div>
+        <p class="text-base font-semibold text-highlighted mb-1">No inboxes connected</p>
+        <p class="text-sm text-muted mb-4">
+          {{ search || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Connect a Gmail account to start sending outreach.' }}
+        </p>
+        <UButton v-if="!search && statusFilter === 'all'" icon="i-lucide-plus" :loading="connecting" @click="connectInbox">
+          Connect your first inbox
+        </UButton>
+      </div>
+    </UCard>
+
+    <!-- Pagination -->
+    <div v-if="total > pageSize" class="flex justify-center mt-6">
+      <UPagination v-model:page="page" :total="total" :page-size="pageSize" />
+    </div>
+
   </div>
 </template>
