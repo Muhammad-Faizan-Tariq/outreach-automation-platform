@@ -13,11 +13,9 @@ jobs:
 
     steps:
 
-      # ── Step 1: Code checkout ──────────────────────
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-      # ── Step 2: .env file banao ────────────────────
       - name: 📝 Create .env File
         env:
           ENV_FILE: ${{ secrets.OUTREACH_ENV_FILE }}
@@ -25,27 +23,18 @@ jobs:
           mkdir -p /home/github-runner/outreach-frontend
           echo "$ENV_FILE" > /home/github-runner/outreach-frontend/.env
 
-      # ── Step 3: Deploy ─────────────────────────────
       - name: 🚀 Deploy
         run: |
           set -e
 
-          echo "💾 Backup current image..."
           docker tag outreach_frontend:latest outreach_frontend:rollback 2>/dev/null || true
 
-          echo "📁 Code copy karo..."
-          mkdir -p /home/github-runner/outreach-frontend
-          cp -r $GITHUB_WORKSPACE/. /home/github-runner/outreach-frontend/
-
-          echo "🔨 Docker image build karo..."
-          cd /home/github-runner/outreach-frontend
+          cd $GITHUB_WORKSPACE
           docker build -t outreach_frontend:latest .
 
-          echo "⏹️ Purana container band karo..."
           docker stop outreach-frontend 2>/dev/null || true
           docker rm outreach-frontend 2>/dev/null || true
 
-          echo "▶️ Naya container start karo..."
           docker run -d \
             --name outreach-frontend \
             --restart always \
@@ -53,20 +42,17 @@ jobs:
             --env-file /home/github-runner/outreach-frontend/.env \
             outreach_frontend:latest
 
-          echo "⏳ 30 seconds wait karo..."
           sleep 30
 
-          echo "🏥 Health check..."
           for i in 1 2 3; do
             if curl -sf http://localhost:3002; then
               echo "✅ Deployment successful!"
               exit 0
             fi
-            echo "⏳ Try $i failed, 10 second wait..."
+            echo "⏳ Try $i failed..."
             sleep 10
           done
 
-          echo "❌ Health check failed! Rollback..."
           docker stop outreach-frontend 2>/dev/null || true
           docker rm outreach-frontend 2>/dev/null || true
           docker run -d \
@@ -77,12 +63,10 @@ jobs:
             outreach_frontend:rollback 2>/dev/null || true
           exit 1
 
-      # ── Step 4: Success ───────────────────────────
       - name: ✅ Deployment Complete
         if: success()
-        run: echo "🎉 Outreach Frontend deployed at http://178.105.57.201:3002"
+        run: echo "🎉 Deployed at http://178.105.57.201:3002"
 
-      # ── Step 5: Failure ───────────────────────────
       - name: ❌ Deployment Failed
         if: failure()
-        run: echo "💥 Deployment FAILED — Rollback ho gaya!"
+        run: echo "💥 Deployment FAILED!"
