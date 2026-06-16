@@ -5,13 +5,14 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --legacy-peer-deps --ignore-scripts
+RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN npx nuxt prepare
-RUN npm run build
+RUN pnpm run build
 
 # ════════════════════════════════════════════════
 #  STAGE 2: Production
