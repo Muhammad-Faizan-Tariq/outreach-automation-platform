@@ -22,8 +22,8 @@ jobs:
         env:
           ENV_FILE: ${{ secrets.OUTREACH_ENV_FILE }}
         run: |
-          mkdir -p /root/outreach-frontend
-          echo "$ENV_FILE" > /root/outreach-frontend/.env
+          mkdir -p /home/github-runner/outreach-frontend
+          echo "$ENV_FILE" > /home/github-runner/outreach-frontend/.env
 
       # ── Step 3: Deploy ─────────────────────────────
       - name: 🚀 Deploy
@@ -34,12 +34,11 @@ jobs:
           docker tag outreach_frontend:latest outreach_frontend:rollback 2>/dev/null || true
 
           echo "📁 Code copy karo..."
-          mkdir -p /root/outreach-frontend
-          cp -r $GITHUB_WORKSPACE/. /root/outreach-frontend/
-          cp /root/outreach-frontend/.env /root/outreach-frontend/.env
+          mkdir -p /home/github-runner/outreach-frontend
+          cp -r $GITHUB_WORKSPACE/. /home/github-runner/outreach-frontend/
 
           echo "🔨 Docker image build karo..."
-          cd /root/outreach-frontend
+          cd /home/github-runner/outreach-frontend
           docker build -t outreach_frontend:latest .
 
           echo "⏹️ Purana container band karo..."
@@ -51,7 +50,7 @@ jobs:
             --name outreach-frontend \
             --restart always \
             -p 3002:3002 \
-            --env-file /root/outreach-frontend/.env \
+            --env-file /home/github-runner/outreach-frontend/.env \
             outreach_frontend:latest
 
           echo "⏳ 30 seconds wait karo..."
@@ -74,7 +73,7 @@ jobs:
             --name outreach-frontend \
             --restart always \
             -p 3002:3002 \
-            --env-file /root/outreach-frontend/.env \
+            --env-file /home/github-runner/outreach-frontend/.env \
             outreach_frontend:rollback 2>/dev/null || true
           exit 1
 
