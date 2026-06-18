@@ -27,7 +27,7 @@ export const useTemplates = () => {
   const { authHeaders } = useAuth()
 
   const templates = ref<EmailTemplate[]>([])
-  const loading = ref(false)
+  const loading = ref(true)
   const error = ref<string | null>(null)
 
   const fetchTemplates = async (params: {

@@ -4,6 +4,7 @@ import type { Contact, ImportBatch } from '~/composables/useContacts'
 
 const toast = useToast()
 const { contacts, total, loading, fetchContacts, uploadCSV, getImport, listImports } = useContacts()
+const { public: cfg } = useRuntimeConfig()
 
 // ---------- pagination + search ----------
 const page = ref(1)
@@ -22,8 +23,9 @@ watch(search, () => {
   searchTimer = setTimeout(() => {
     page.value = 1
     load()
-  }, 300)
+  }, cfg.searchDebounce)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 // ---------- import modal ----------
 const importOpen = ref(false)
@@ -91,7 +93,6 @@ const historyLoading = ref(false)
 
 async function openHistory() {
   historyOpen.value = true
-  if (historyList.value.length > 0) return
   historyLoading.value = true
   try {
     historyList.value = await listImports()
@@ -173,8 +174,13 @@ function importStatusColor(s: string): BadgeColor {
       />
     </div>
 
+    <!-- Loading skeleton (first load only) -->
+    <div v-if="loading && !contacts.length" class="space-y-2">
+      <USkeleton v-for="i in 8" :key="i" class="h-12 rounded-xl" />
+    </div>
+
     <!-- Table -->
-    <UCard :ui="{ body: 'p-0' }">
+    <UCard v-else :ui="{ body: 'p-0' }">
       <UTable :data="contacts" :columns="columns" :loading="loading">
 
         <template #email-cell="{ row }">

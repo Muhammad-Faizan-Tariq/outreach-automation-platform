@@ -4,6 +4,7 @@ import type { UserSummary } from '~/composables/useUsers'
 
 const { replies, total, loading, fetchReplies, getReply, updateReply } = useReplies()
 const { users, fetchUsers } = useUsers()
+const { public: cfg } = useRuntimeConfig()
 
 // ── filter state ───────────────────────────────────────────────────────────
 const search = ref('')
@@ -61,8 +62,9 @@ async function load() {
 
 watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => load(), 300)
+  searchTimer = setTimeout(() => load(), cfg.searchDebounce)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 watch([classFilter, handledFilter], () => {
   selectedId.value = null
@@ -225,7 +227,7 @@ const unhandledCount = computed(() => replies.value.filter(r => !r.handled_at).l
       <!-- Reply list -->
       <div class="flex-1 overflow-y-auto">
         <div v-if="loading && !replies.length" class="p-3 space-y-2">
-          <div v-for="i in 5" :key="i" class="h-16 bg-elevated rounded-lg animate-pulse" />
+          <USkeleton v-for="i in 5" :key="i" class="h-16 rounded-lg" />
         </div>
         <div v-else-if="replies.length === 0" class="px-4 py-10 text-center">
           <UIcon name="i-lucide-inbox" class="w-8 h-8 text-muted mx-auto mb-2" />

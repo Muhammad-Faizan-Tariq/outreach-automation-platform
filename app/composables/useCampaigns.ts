@@ -72,7 +72,7 @@ export const useCampaigns = () => {
 
   const campaigns = ref<Campaign[]>([])
   const total = ref(0)
-  const loading = ref(false)
+  const loading = ref(true)
   const error = ref<string | null>(null)
 
   const fetchCampaigns = async (params: {

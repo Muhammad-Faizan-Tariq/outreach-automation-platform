@@ -5,6 +5,7 @@ import type { EmailAccountSummary } from '~/composables/useInboxes'
 const route = useRoute()
 const toast = useToast()
 const { inboxes, total, loading, listInboxes, pauseInbox, resumeInbox, retireInbox, watchInbox, startGoogleOAuth } = useInboxes()
+const { public: cfg } = useRuntimeConfig()
 
 // ── filters + pagination ──────────────────────────────────────────────
 const search = ref('')
@@ -42,16 +43,17 @@ onMounted(async () => {
   await load()
 })
 
-watch([page, statusFilter], load)
+const isFirstLoad = computed(() => loading.value && inboxes.value.length === 0)
+
+watch(page, load)
+watch(statusFilter, () => { page.value = 1; load() })
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    page.value = 1
-    load()
-  }, 300)
+  searchTimer = setTimeout(() => { page.value = 1; load() }, cfg.searchDebounce)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 // ── connect OAuth ─────────────────────────────────────────────────────
 const connecting = ref(false)
@@ -180,17 +182,22 @@ const STATUS_FILTER_OPTIONS = [
 
     <!-- Stats -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <UCard v-for="stat in stats" :key="stat.label">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
-            <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
+      <template v-if="isFirstLoad">
+        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      </template>
+      <template v-else>
+        <UCard v-for="stat in stats" :key="stat.label">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
+              <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
+            </div>
+            <div>
+              <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
+              <p class="text-xs text-muted">{{ stat.label }}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
-            <p class="text-xs text-muted">{{ stat.label }}</p>
-          </div>
-        </div>
-      </UCard>
+        </UCard>
+      </template>
     </div>
 
     <!-- Filters -->

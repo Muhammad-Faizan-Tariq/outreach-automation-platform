@@ -4,6 +4,7 @@ import type { Campaign } from '~/composables/useCampaigns'
 
 const toast = useToast()
 const { campaigns, total, loading, fetchCampaigns, startCampaign, pauseCampaign, deleteCampaign } = useCampaigns()
+const { public: cfg } = useRuntimeConfig()
 
 const search = ref('')
 const statusFilter = ref('all')
@@ -27,16 +28,19 @@ async function load() {
   })
 }
 
+const isFirstLoad = computed(() => loading.value && campaigns.value.length === 0)
+
 onMounted(load)
-watch([page, statusFilter], load)
+
+watch(page, load)
+watch(statusFilter, () => { page.value = 1; load() })
+
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    page.value = 1
-    load()
-  }, 300)
+  searchTimer = setTimeout(() => { page.value = 1; load() }, cfg.searchDebounce)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 // ── summary counts from loaded data ───────────────────────────────────
 const summaryStats = computed(() => [
@@ -173,17 +177,22 @@ const STATUS_FILTER_OPTIONS = [
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <UCard v-for="stat in summaryStats" :key="stat.label">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
-            <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
+      <template v-if="isFirstLoad">
+        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      </template>
+      <template v-else>
+        <UCard v-for="stat in summaryStats" :key="stat.label">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
+              <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
+            </div>
+            <div>
+              <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
+              <p class="text-xs text-muted">{{ stat.label }}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
-            <p class="text-xs text-muted">{{ stat.label }}</p>
-          </div>
-        </div>
-      </UCard>
+        </UCard>
+      </template>
     </div>
 
     <div class="flex items-center gap-3 mb-4 flex-wrap">

@@ -240,7 +240,12 @@ const columns: TableColumn<SuppressionEntry>[] = [
       </div>
     </div>
 
-    <UCard :ui="{ body: 'p-0' }">
+    <!-- Loading skeleton (initial load only) -->
+    <div v-if="pageLoading && !list.length" class="space-y-2">
+      <USkeleton v-for="i in 6" :key="i" class="h-12 rounded-xl" />
+    </div>
+
+    <UCard v-else :ui="{ body: 'p-0' }">
       <UTable :data="list" :columns="columns" :loading="pageLoading">
 
         <template #email-cell="{ row }">

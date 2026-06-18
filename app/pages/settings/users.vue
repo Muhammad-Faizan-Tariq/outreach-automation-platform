@@ -3,14 +3,16 @@ import type { UserSummary, UserCreate } from '~/composables/useUsers'
 
 const { users, loading, error, fetchUsers, createUser, updateUser, deleteUser } = useUsers()
 const toast = useToast()
+const { public: cfg } = useRuntimeConfig()
 
 const search = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 watch(search, () => {
   if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => load(), 300)
+  searchTimer = setTimeout(() => load(), cfg.searchDebounce)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 async function load() {
   await fetchUsers({ search: search.value || undefined, page_size: 100 })
@@ -129,13 +131,13 @@ const activeCount = computed(() => users.value.filter(u => u.is_active).length)
     <!-- Error -->
     <div v-if="error" class="mb-4 p-3 rounded-lg bg-error-50 text-error-700 text-sm">{{ error }}</div>
 
-    <!-- Loading skeleton -->
+    <!-- Loading skeleton (initial load only) -->
     <div v-if="loading && !users.length" class="space-y-2">
-      <div v-for="i in 4" :key="i" class="h-16 bg-elevated rounded-xl animate-pulse" />
+      <USkeleton v-for="i in 5" :key="i" class="h-16 rounded-xl" />
     </div>
 
     <!-- User list -->
-    <UCard v-else :ui="{ body: 'p-0' }">
+    <UCard v-else :ui="{ body: 'p-0' }" :class="loading ? 'opacity-60 pointer-events-none' : ''"  >
       <div v-if="!users.length" class="py-16 text-center">
         <UIcon name="i-lucide-users" class="w-10 h-10 text-muted mx-auto mb-3" />
         <p class="text-sm font-semibold text-highlighted mb-1">No users found</p>

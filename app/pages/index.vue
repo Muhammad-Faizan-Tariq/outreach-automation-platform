@@ -11,9 +11,16 @@ type BadgeColor = 'success' | 'neutral' | 'error' | 'warning' | 'primary' | 'inf
 const summary = ref<AnalyticsSummary | null>(null)
 const queueTotal = ref(0)
 const failedTotal = ref(0)
-const loading = ref(true)
+const { public: cfg } = useRuntimeConfig()
 
-onMounted(async () => {
+const loading = ref(true)
+const refreshing = ref(false)
+const lastUpdated = ref<Date | null>(null)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+async function doLoad(silent = false) {
+  if (!silent) loading.value = true
+  else refreshing.value = true
   const [sum, q, f] = await Promise.all([
     fetchSummary().catch(() => null),
     fetchQueue({ page_size: 1 }).catch(() => null),
@@ -23,6 +30,17 @@ onMounted(async () => {
   queueTotal.value = q?.total ?? 0
   failedTotal.value = f?.total ?? 0
   loading.value = false
+  refreshing.value = false
+  if (sum) lastUpdated.value = new Date()
+}
+
+onMounted(() => {
+  doLoad()
+  refreshTimer = setInterval(() => doLoad(true), cfg.refreshDashboard)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
 })
 
 const sendProgress = computed(() => {
@@ -67,24 +85,39 @@ const greeting = computed(() => {
   <div class="max-w-7xl mx-auto px-6 py-8">
 
     <!-- Welcome -->
-    <div class="mb-8">
-      <h1 class="text-2xl font-semibold text-highlighted">
-        Good {{ greeting }}, {{ user?.full_name?.split(' ')[0] ?? 'there' }}
-      </h1>
-      <p class="mt-1 text-sm text-muted">Here's what's happening in your outreach platform.</p>
+    <div class="flex items-start justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-semibold text-highlighted">
+          Good {{ greeting }}, {{ user?.full_name?.split(' ')[0] ?? 'there' }}
+        </h1>
+        <p class="mt-1 text-sm text-muted">Here's what's happening in your outreach platform.</p>
+      </div>
+      <div class="flex items-center gap-2 mt-1">
+        <span v-if="lastUpdated" class="text-xs text-muted">
+          Updated {{ lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+        </span>
+        <UButton
+          icon="i-lucide-refresh-cw"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :loading="refreshing"
+          @click="doLoad(true)"
+        />
+      </div>
     </div>
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-6">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div v-for="i in 4" :key="i" class="h-24 bg-elevated rounded-xl animate-pulse" />
+        <USkeleton v-for="i in 4" :key="i" class="h-24 rounded-xl" />
       </div>
-      <div class="h-16 bg-elevated rounded-xl animate-pulse" />
+      <USkeleton class="h-16 rounded-xl" />
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 h-64 bg-elevated rounded-xl animate-pulse" />
+        <USkeleton class="lg:col-span-2 h-64 rounded-xl" />
         <div class="space-y-4">
-          <div class="h-32 bg-elevated rounded-xl animate-pulse" />
-          <div class="h-32 bg-elevated rounded-xl animate-pulse" />
+          <USkeleton class="h-32 rounded-xl" />
+          <USkeleton class="h-32 rounded-xl" />
         </div>
       </div>
     </div>

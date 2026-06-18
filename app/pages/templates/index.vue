@@ -143,7 +143,7 @@ function fmtVar(v: string) { return `{{${v}}}` }
 
     <!-- Loading -->
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-      <div v-for="n in 6" :key="n" class="h-48 bg-elevated rounded-xl animate-pulse" />
+      <USkeleton v-for="n in 6" :key="n" class="h-48 rounded-xl" />
     </div>
 
     <!-- Empty state -->

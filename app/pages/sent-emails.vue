@@ -26,11 +26,17 @@ async function load() {
 }
 
 onMounted(() => {
+  // seed filters from query params without triggering watcher (page starts at 1)
   if (route.query.email_account_id) inboxFilter.value = String(route.query.email_account_id)
   if (route.query.campaign_id) campaignFilter.value = String(route.query.campaign_id)
   load()
 })
-watch([page, statusFilter, stepFilter, inboxFilter, campaignFilter], load)
+
+watch(page, load)
+watch([statusFilter, stepFilter, inboxFilter, campaignFilter], () => {
+  page.value = 1
+  load()
+})
 
 // ── detail modal ──────────────────────────────────────────────────────
 const previewOpen = ref(false)
@@ -150,7 +156,7 @@ const STEP_OPTIONS = [
         color="neutral"
         variant="ghost"
         icon="i-lucide-x"
-        @click="inboxFilter = null; campaignFilter = null"
+        @click="inboxFilter = null; campaignFilter = null; page = 1"
       >
         Clear filter
       </UButton>
@@ -179,8 +185,13 @@ const STEP_OPTIONS = [
       />
     </div>
 
+    <!-- Loading skeleton (first load only) -->
+    <div v-if="loading && !sentEmails.length" class="space-y-2">
+      <USkeleton v-for="i in 8" :key="i" class="h-12 rounded-xl" />
+    </div>
+
     <!-- Table -->
-    <UCard :ui="{ body: 'p-0' }">
+    <UCard v-else :ui="{ body: 'p-0' }">
       <UTable
         :data="sentEmails"
         :columns="columns"

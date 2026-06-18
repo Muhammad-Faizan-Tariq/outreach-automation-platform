@@ -9,9 +9,12 @@ const inbox = ref<EmailAccountDetail | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 
-onMounted(async () => {
+async function fetchInbox(id: string) {
+  loading.value = true
+  notFound.value = false
+  inbox.value = null
   try {
-    inbox.value = await getInbox(route.params.id as string)
+    inbox.value = await getInbox(id)
   }
   catch (e: any) {
     if (e?.status === 404 || e?.statusCode === 404) notFound.value = true
@@ -20,7 +23,9 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
-})
+}
+
+watch(() => route.params.id, (id) => fetchInbox(id as string), { immediate: true })
 
 // ── edit modal ────────────────────────────────────────────────────────
 const editOpen = ref(false)

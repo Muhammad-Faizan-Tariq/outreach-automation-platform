@@ -52,7 +52,7 @@ export interface ImportBatch {
 export const useContacts = () => {
   const contacts = ref<Contact[]>([])
   const total = ref(0)
-  const loading = ref(false)
+  const loading = ref(true)
   const error = ref<string | null>(null)
 
   const config = useRuntimeConfig()

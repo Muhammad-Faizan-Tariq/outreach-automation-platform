@@ -5,6 +5,11 @@ const { user, logout, init } = useAuth()
 onMounted(init)
 
 const collapsed = useState('sidebar.collapsed', () => false)
+const colorMode = useColorMode()
+const isDark = computed(() => colorMode.value === 'dark')
+function toggleDark() {
+  colorMode.preference = isDark.value ? 'light' : 'dark'
+}
 
 type NavItem = {
   label: string
@@ -139,12 +144,30 @@ function isActive(to: string) {
           >
             <UAvatar :alt="user?.full_name ?? ''" size="xs" class="shrink-0 cursor-default" />
           </UTooltip>
+          <UTooltip v-if="collapsed" :text="isDark ? 'Light mode' : 'Dark mode'" :content="{ placement: 'right' }">
+            <UButton
+              :icon="isDark ? 'i-lucide-sun' : 'i-lucide-moon'"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              @click="toggleDark"
+            />
+          </UTooltip>
 
           <template v-if="!collapsed">
             <div class="flex-1 min-w-0">
               <p class="text-xs font-semibold text-highlighted truncate">{{ user?.full_name ?? '…' }}</p>
               <p class="text-xs text-muted truncate capitalize">{{ user?.role?.replace('_', ' ') }}</p>
             </div>
+            <UTooltip :text="isDark ? 'Light mode' : 'Dark mode'" :content="{ placement: 'top' }">
+              <UButton
+                :icon="isDark ? 'i-lucide-sun' : 'i-lucide-moon'"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="toggleDark"
+              />
+            </UTooltip>
             <UButton
               icon="i-lucide-log-out"
               color="neutral"

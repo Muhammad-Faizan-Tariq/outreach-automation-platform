@@ -39,7 +39,7 @@ export const useSentEmails = () => {
 
   const sentEmails = ref<SentEmailSummary[]>([])
   const total = ref(0)
-  const loading = ref(false)
+  const loading = ref(true)
   const error = ref<string | null>(null)
 
   const fetchSentEmails = async (params: {

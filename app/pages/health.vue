@@ -15,7 +15,7 @@ const { authHeaders } = useAuth()
 
 const liveness = ref<LivenessResult | null>(null)
 const readiness = ref<ReadinessResult | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 const lastChecked = ref<Date | null>(null)
 
 async function check() {
@@ -86,8 +86,8 @@ function fmtTime(d: Date | null) {
 
     <!-- Loading skeleton -->
     <div v-if="loading && !liveness" class="space-y-4">
-      <div class="h-28 bg-elevated rounded-xl animate-pulse" />
-      <div class="h-28 bg-elevated rounded-xl animate-pulse" />
+      <USkeleton class="h-28 rounded-xl" />
+      <USkeleton class="h-28 rounded-xl" />
     </div>
 
     <div v-else class="space-y-4">

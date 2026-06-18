@@ -7,7 +7,13 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api/v1'
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8000/api/v1',
+      // Auto-refresh intervals (ms) — override per environment via .env
+      refreshDashboard: Number(process.env.NUXT_PUBLIC_REFRESH_DASHBOARD) || 60_000,
+      refreshAnalytics: Number(process.env.NUXT_PUBLIC_REFRESH_ANALYTICS) || 300_000,
+      refreshQueue: Number(process.env.NUXT_PUBLIC_REFRESH_QUEUE) || 30_000,
+      refreshWorkers: Number(process.env.NUXT_PUBLIC_REFRESH_WORKERS) || 10_000,
+      searchDebounce: Number(process.env.NUXT_PUBLIC_SEARCH_DEBOUNCE) || 300,
     }
   },
 
@@ -16,10 +22,6 @@ export default defineNuxtConfig({
   },
 
   css: ['~/assets/css/main.css'],
-
-  routeRules: {
-    '/': { prerender: true }
-  },
 
   compatibilityDate: '2025-01-15',
 

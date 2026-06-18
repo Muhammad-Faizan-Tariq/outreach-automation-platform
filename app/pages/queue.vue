@@ -2,6 +2,7 @@
 import type { QueueItem, WorkersResponse, FailedJob } from '~/composables/useQueue'
 
 const { fetchQueue, fetchWorkers, fetchFailed } = useQueue()
+const { public: cfg } = useRuntimeConfig()
 
 const queueItems = ref<QueueItem[]>([])
 const queueTotal = ref(0)
@@ -50,8 +51,8 @@ async function loadFailed() {
 
 onMounted(async () => {
   await Promise.all([loadQueue(), loadWorkers(), loadFailed()])
-  queueTimer = setInterval(loadQueue, 30_000)
-  workerTimer = setInterval(loadWorkers, 10_000)
+  queueTimer = setInterval(loadQueue, cfg.refreshQueue)
+  workerTimer = setInterval(loadWorkers, cfg.refreshWorkers)
 })
 
 onUnmounted(() => {
@@ -126,22 +127,27 @@ function fmtScheduled(ts: string): string {
 
     <!-- Stats row -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <UCard class="text-center">
-        <p class="text-xs text-muted uppercase tracking-wide mb-1">Total queued</p>
-        <p class="text-2xl font-semibold text-highlighted">{{ counts.total }}</p>
-      </UCard>
-      <UCard class="text-center">
-        <p class="text-xs text-muted uppercase tracking-wide mb-1">Pending</p>
-        <p class="text-2xl font-semibold text-highlighted">{{ counts.pending }}</p>
-      </UCard>
-      <UCard class="text-center">
-        <p class="text-xs text-muted uppercase tracking-wide mb-1">Overdue</p>
-        <p class="text-2xl font-semibold" :class="counts.overdue > 0 ? 'text-error-600' : 'text-muted'">{{ counts.overdue }}</p>
-      </UCard>
-      <UCard class="text-center">
-        <p class="text-xs text-muted uppercase tracking-wide mb-1">Failed jobs</p>
-        <p class="text-2xl font-semibold" :class="failedTotal > 0 ? 'text-error-600' : 'text-muted'">{{ failedTotal }}</p>
-      </UCard>
+      <template v-if="loadingQueue && !queueItems.length">
+        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      </template>
+      <template v-else>
+        <UCard class="text-center">
+          <p class="text-xs text-muted uppercase tracking-wide mb-1">Total queued</p>
+          <p class="text-2xl font-semibold text-highlighted">{{ counts.total }}</p>
+        </UCard>
+        <UCard class="text-center">
+          <p class="text-xs text-muted uppercase tracking-wide mb-1">Pending</p>
+          <p class="text-2xl font-semibold text-highlighted">{{ counts.pending }}</p>
+        </UCard>
+        <UCard class="text-center">
+          <p class="text-xs text-muted uppercase tracking-wide mb-1">Overdue</p>
+          <p class="text-2xl font-semibold" :class="counts.overdue > 0 ? 'text-error-600' : 'text-muted'">{{ counts.overdue }}</p>
+        </UCard>
+        <UCard class="text-center">
+          <p class="text-xs text-muted uppercase tracking-wide mb-1">Failed jobs</p>
+          <p class="text-2xl font-semibold" :class="failedTotal > 0 ? 'text-error-600' : 'text-muted'">{{ failedTotal }}</p>
+        </UCard>
+      </template>
     </div>
 
     <!-- Workers + Job breakdown -->
@@ -151,7 +157,7 @@ function fmtScheduled(ts: string): string {
       <UCard>
         <h2 class="text-sm font-semibold text-highlighted mb-4">Queued Task Counts</h2>
         <div v-if="loadingWorkers" class="space-y-3">
-          <div v-for="i in 4" :key="i" class="h-6 bg-elevated rounded animate-pulse" />
+          <USkeleton v-for="i in 4" :key="i" class="h-6 rounded" />
         </div>
         <div v-else-if="jobTypes.length" class="space-y-3">
           <div v-for="jt in jobTypes" :key="jt.label" class="flex items-center gap-3">
@@ -176,7 +182,7 @@ function fmtScheduled(ts: string): string {
           </span>
         </h2>
         <div v-if="loadingWorkers" class="space-y-2">
-          <div v-for="i in 2" :key="i" class="h-14 bg-elevated rounded-lg animate-pulse" />
+          <USkeleton v-for="i in 2" :key="i" class="h-14 rounded-lg" />
         </div>
         <div v-else-if="workersData?.workers.length" class="space-y-2">
           <div
@@ -241,8 +247,8 @@ function fmtScheduled(ts: string): string {
     </div>
 
     <UCard :ui="{ body: 'p-0' }">
-      <div v-if="loadingQueue && !queueItems.length" class="py-10 space-y-2 px-4">
-        <div v-for="i in 5" :key="i" class="h-10 bg-elevated rounded animate-pulse" />
+      <div v-if="loadingQueue && !queueItems.length" class="py-4 space-y-2 px-4">
+        <USkeleton v-for="i in 5" :key="i" class="h-10 rounded" />
       </div>
 
       <div v-else-if="filteredQueue.length === 0" class="py-16 text-center">

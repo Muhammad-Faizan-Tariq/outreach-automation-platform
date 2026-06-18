@@ -23,15 +23,19 @@ ChartJS.register(
 type Range = '7d' | '30d' | '90d'
 
 const { fetchSummary, fetchMetrics } = useAnalytics()
+const { public: cfg } = useRuntimeConfig()
 
 const range = ref<Range>('30d')
 const summary = ref<AnalyticsSummary | null>(null)
 const metrics = ref<AnalyticsMetrics | null>(null)
 const loading = ref(true)
 const loadingMetrics = ref(false)
+const lastUpdated = ref<Date | null>(null)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let rangeSeq = 0
 
-async function load() {
-  loading.value = true
+async function load(silent = false) {
+  if (!silent) loading.value = true
   const [s, m] = await Promise.all([
     fetchSummary().catch(() => null),
     fetchMetrics(range.value).catch(() => null),
@@ -39,16 +43,28 @@ async function load() {
   summary.value = s
   metrics.value = m
   loading.value = false
+  if (s) lastUpdated.value = new Date()
 }
 
 async function changeRange(r: Range) {
   range.value = r
   loadingMetrics.value = true
-  metrics.value = await fetchMetrics(r).catch(() => null)
-  loadingMetrics.value = false
+  const seq = ++rangeSeq
+  const m = await fetchMetrics(r).catch(() => null)
+  if (seq === rangeSeq) {
+    metrics.value = m
+    loadingMetrics.value = false
+  }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  refreshTimer = setInterval(() => load(true), cfg.refreshAnalytics)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 
 // ── label formatting ──────────────────────────────────────────────────────
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -232,14 +248,20 @@ function rateColor(r: number) {
 </script>
 
 <template>
-  <div class="max-w-screen-xl mx-auto px-6 py-8">
+  <div class="max-w-7xl mx-auto px-6 py-8">
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-semibold text-highlighted">Analytics</h1>
-        <p class="mt-0.5 text-sm text-muted">Platform-wide sending performance</p>
+        <p class="mt-0.5 text-sm text-muted">
+          Platform-wide sending performance
+          <span v-if="lastUpdated" class="ml-2 text-xs">
+            · Updated {{ lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+          </span>
+        </p>
       </div>
+      <div class="flex items-center gap-2">
       <div class="flex items-center gap-1 border border-default rounded-lg p-0.5">
         <UButton
           v-for="r in (['7d', '30d', '90d'] as Range[])"
@@ -253,16 +275,22 @@ function rateColor(r: number) {
           {{ r }}
         </UButton>
       </div>
+      <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="xs" :loading="loadingMetrics" @click="load(true)" />
+      </div>
     </div>
 
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div v-for="i in 5" :key="i" class="h-20 bg-elevated rounded-xl animate-pulse" />
+        <USkeleton v-for="i in 5" :key="i" class="h-20 rounded-xl" />
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div class="h-56 bg-elevated rounded-xl animate-pulse" />
-        <div class="h-56 bg-elevated rounded-xl animate-pulse" />
+        <USkeleton class="h-56 rounded-xl" />
+        <USkeleton class="h-56 rounded-xl" />
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <USkeleton class="lg:col-span-3 h-52 rounded-xl" />
+        <USkeleton class="lg:col-span-2 h-52 rounded-xl" />
       </div>
     </div>
 
