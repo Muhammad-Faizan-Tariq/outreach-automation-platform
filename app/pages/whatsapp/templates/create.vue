@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const router = useRouter()
 const toast = useToast()
+const { createTemplate } = useWaTemplates()
 
 type HeaderType = 'none' | 'text' | 'image' | 'document'
 type ButtonType = 'quick_reply' | 'url'
@@ -61,7 +62,7 @@ const CATEGORIES = [
 ]
 
 const LANGUAGES = [
-  { label: 'English (en)', value: 'en' },
+  { label: 'English (en_US)', value: 'en_US' },
   { label: 'Arabic (ar)', value: 'ar' },
 ]
 
@@ -120,14 +121,32 @@ const canSave = computed(() =>
 async function saveTemplate(submit: boolean) {
   if (!canSave.value) return
   saving.value = true
-  await new Promise(r => setTimeout(r, 800))
-  saving.value = false
-  if (submit) {
-    toast.add({ title: 'Template submitted', description: `"${form.name}" sent to Meta for review. Approval usually takes 24–48h.`, color: 'success', icon: 'i-lucide-check-circle' })
-  } else {
-    toast.add({ title: 'Draft saved', description: `"${form.name}" saved as draft.`, color: 'neutral', icon: 'i-lucide-save' })
+  try {
+    const headerFormat = form.headerType === 'none' ? null : form.headerType.toUpperCase()
+    await createTemplate({
+      name: form.name,
+      language: form.language,
+      category: form.category.toUpperCase(),
+      header_format: headerFormat,
+      header_text: form.headerType === 'text' ? form.headerText : null,
+      body_text: form.body,
+      footer_text: form.footer || null,
+      buttons: form.buttons.map(b => ({ type: b.type.toUpperCase(), text: b.text, url: b.url || undefined })),
+    })
+    if (submit) {
+      toast.add({ title: 'Template submitted', description: `"${form.name}" sent to Meta for review. Approval usually takes 24–48h.`, color: 'success', icon: 'i-lucide-check-circle' })
+    }
+    else {
+      toast.add({ title: 'Template created', description: `"${form.name}" saved.`, color: 'success', icon: 'i-lucide-save' })
+    }
+    router.push('/whatsapp/templates')
   }
-  router.push('/whatsapp/templates')
+  catch (e: any) {
+    toast.add({ title: 'Failed to save', description: e?.data?.detail ?? 'Something went wrong.', color: 'error', icon: 'i-lucide-x-circle' })
+  }
+  finally {
+    saving.value = false
+  }
 }
 
 const bodyLength = computed(() => form.body.length)

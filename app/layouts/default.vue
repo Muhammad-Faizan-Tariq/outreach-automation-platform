@@ -34,7 +34,11 @@ const navItems: NavItem[] = [
   { label: 'Queue', icon: 'i-lucide-layers', to: '/queue' },
   { label: 'Health', icon: 'i-lucide-activity', to: '/health' },
 
-  { label: 'WA Templates', icon: 'i-lucide-message-circle', to: '/whatsapp/templates', section: 'WhatsApp' },
+  { label: 'WA Analytics', icon: 'i-lucide-bar-chart-3', to: '/whatsapp/analytics', section: 'WhatsApp' },
+  { label: 'WA Campaigns', icon: 'i-lucide-megaphone', to: '/whatsapp/campaigns' },
+  { label: 'WA Inbound', icon: 'i-lucide-message-square', to: '/whatsapp/inbound' },
+  { label: 'WA Templates', icon: 'i-lucide-message-circle', to: '/whatsapp/templates' },
+  { label: 'WA Media', icon: 'i-lucide-image', to: '/whatsapp/media' },
 
   { label: 'Users', icon: 'i-lucide-users-round', to: '/settings/users', section: 'Settings' },
   { label: 'Suppression', icon: 'i-lucide-shield-x', to: '/settings/suppression' },
