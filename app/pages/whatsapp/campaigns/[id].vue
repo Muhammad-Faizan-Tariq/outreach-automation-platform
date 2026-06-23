@@ -158,12 +158,7 @@ function readRate() {
       Back to campaigns
     </NuxtLink>
 
-    <!-- Loading -->
-    <div v-if="loading" class="space-y-4">
-      <USkeleton class="h-10 w-72 rounded-xl" />
-      <div class="grid grid-cols-4 gap-4"><USkeleton v-for="i in 4" :key="i" class="h-20 rounded-xl" /></div>
-      <USkeleton class="h-48 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading" label="Loading campaign…" />
 
     <!-- Not found -->
     <div v-else-if="notFound" class="text-center py-24">

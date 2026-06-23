@@ -84,11 +84,7 @@ function fmtTime(d: Date | null) {
       </UButton>
     </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading && !liveness" class="space-y-4">
-      <USkeleton class="h-28 rounded-xl" />
-      <USkeleton class="h-28 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading && !liveness" label="Checking system health…" />
 
     <div v-else class="space-y-4">
 

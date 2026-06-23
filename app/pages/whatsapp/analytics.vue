@@ -2,10 +2,36 @@
 import type { ColumnDef } from '@tanstack/vue-table'
 
 const { summary, campaignStats, walletBalance, channels, loading, error, fetchAnalytics, fetchWallet, fetchChannels } = useWaAnalytics()
+const { accounts, fetchAccounts } = useWaAccounts()
+const { phones, fetchAllPhones } = useWaPhoneNumbers()
+
+const accountFilter = ref('all')
+
+const accountOptions = computed(() => [
+  { label: 'All accounts', value: 'all' },
+  ...accounts.value.map(a => ({ label: a.name, value: a.id })),
+])
+
+const activePhoneId = computed(() => {
+  if (!phones.value.length) return undefined
+  if (accountFilter.value === 'all') return phones.value[0]?.id
+  return phones.value.find(p => p.wa_account_id === accountFilter.value)?.id
+})
+
+async function loadAll() {
+  await fetchAnalytics({ account_id: accountFilter.value !== 'all' ? accountFilter.value : undefined })
+  await Promise.all([
+    fetchWallet(activePhoneId.value),
+    fetchChannels(activePhoneId.value),
+  ])
+}
 
 onMounted(async () => {
-  await Promise.all([fetchAnalytics(), fetchWallet(), fetchChannels()])
+  await Promise.all([fetchAccounts(), fetchAllPhones()])
+  await loadAll()
 })
+
+watch(accountFilter, loadAll)
 
 const columns: ColumnDef<any>[] = [
   { accessorKey: 'name', header: 'Campaign' },
@@ -31,15 +57,18 @@ const isFirstLoad = computed(() => loading.value && !summary.value)
   <div class="px-6 py-8 max-w-7xl mx-auto">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-semibold text-highlighted">WA Analytics</h1>
         <p class="text-sm text-muted mt-0.5">Overall WhatsApp campaign performance</p>
       </div>
-      <div v-if="walletBalance !== null" class="flex items-center gap-2 bg-default border border-default rounded-xl px-4 py-2">
-        <UIcon name="i-lucide-wallet" class="w-4 h-4 text-muted" />
-        <span class="text-sm font-semibold text-highlighted">{{ walletBalance }}</span>
-        <span class="text-xs text-muted">wallet balance</span>
+      <div class="flex items-center gap-3">
+        <USelect v-model="accountFilter" :items="accountOptions" value-key="value" label-key="label" class="w-44" />
+        <div v-if="walletBalance !== null" class="flex items-center gap-2 bg-default border border-default rounded-xl px-4 py-2">
+          <UIcon name="i-lucide-wallet" class="w-4 h-4 text-muted" />
+          <span class="text-sm font-semibold text-highlighted">{{ walletBalance }}</span>
+          <span class="text-xs text-muted">wallet balance</span>
+        </div>
       </div>
     </div>
 
@@ -48,13 +77,12 @@ const isFirstLoad = computed(() => loading.value && !summary.value)
       {{ error }}
     </div>
 
-    <!-- Summary skeleton -->
-    <div v-if="isFirstLoad" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <USkeleton v-for="i in 4" :key="i" class="h-24 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="isFirstLoad" label="Loading analytics…" />
+
+    <template v-else>
 
     <!-- Summary cards -->
-    <div v-else-if="summary" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div v-if="summary" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       <div class="bg-default border border-default rounded-xl px-5 py-4">
         <p class="text-xs text-muted uppercase tracking-wide">Total Sent</p>
         <p class="text-3xl font-bold text-highlighted mt-1">{{ summary.total_sent.toLocaleString() }}</p>
@@ -93,11 +121,7 @@ const isFirstLoad = computed(() => loading.value && !summary.value)
     <!-- Campaign breakdown -->
     <h2 class="text-base font-semibold text-highlighted mb-3">Campaign Breakdown</h2>
 
-    <div v-if="isFirstLoad" class="space-y-2">
-      <USkeleton v-for="i in 6" :key="i" class="h-12 rounded-xl" />
-    </div>
-
-    <UCard v-else class="overflow-hidden p-0">
+    <UCard class="overflow-hidden p-0">
       <UTable :data="campaignStats" :columns="columns">
 
         <template #name-cell="{ row }">
@@ -153,6 +177,8 @@ const isFirstLoad = computed(() => loading.value && !summary.value)
 
       </UTable>
     </UCard>
+
+    </template>
 
   </div>
 </template>

@@ -226,8 +226,11 @@ const unhandledCount = computed(() => replies.value.filter(r => !r.handled_at).l
 
       <!-- Reply list -->
       <div class="flex-1 overflow-y-auto">
-        <div v-if="loading && !replies.length" class="p-3 space-y-2">
-          <USkeleton v-for="i in 5" :key="i" class="h-16 rounded-lg" />
+        <div v-if="loading && !replies.length" class="flex items-center justify-center py-10">
+          <div class="relative">
+            <div class="w-8 h-8 rounded-full border-2 border-primary/20" />
+            <div class="absolute inset-0 w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
         </div>
         <div v-else-if="replies.length === 0" class="px-4 py-10 text-center">
           <UIcon name="i-lucide-inbox" class="w-8 h-8 text-muted mx-auto mb-2" />
@@ -327,11 +330,7 @@ const unhandledCount = computed(() => replies.value.filter(r => !r.handled_at).l
         <!-- Messages area -->
         <div ref="threadRef" class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-          <!-- Loading skeleton -->
-          <div v-if="detailLoading" class="space-y-4">
-            <div class="h-24 bg-elevated rounded-2xl animate-pulse" />
-            <div class="h-32 bg-elevated rounded-2xl animate-pulse ml-16" />
-          </div>
+          <AppPageLoader v-if="detailLoading" label="Loading thread…" />
 
           <template v-else-if="selectedDetail">
             <!-- Original outbound email (thread context) -->

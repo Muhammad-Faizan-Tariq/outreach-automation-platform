@@ -131,10 +131,7 @@ const activeCount = computed(() => users.value.filter(u => u.is_active).length)
     <!-- Error -->
     <div v-if="error" class="mb-4 p-3 rounded-lg bg-error-50 text-error-700 text-sm">{{ error }}</div>
 
-    <!-- Loading skeleton (initial load only) -->
-    <div v-if="loading && !users.length" class="space-y-2">
-      <USkeleton v-for="i in 5" :key="i" class="h-16 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading && !users.length" label="Loading users…" />
 
     <!-- User list -->
     <UCard v-else :ui="{ body: 'p-0' }" :class="loading ? 'opacity-60 pointer-events-none' : ''"  >

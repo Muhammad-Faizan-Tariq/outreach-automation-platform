@@ -159,12 +159,7 @@ function usagePct(sent: number, limit: number): number {
       Back to inboxes
     </NuxtLink>
 
-    <!-- Loading -->
-    <div v-if="loading" class="space-y-4">
-      <div class="h-8 w-72 bg-elevated rounded-lg animate-pulse" />
-      <div class="h-48 bg-elevated rounded-xl animate-pulse" />
-      <div class="h-48 bg-elevated rounded-xl animate-pulse" />
-    </div>
+    <AppPageLoader v-if="loading" label="Loading inbox…" />
 
     <!-- Not found -->
     <div v-else-if="notFound" class="text-center py-24">

@@ -2,11 +2,18 @@
 import type { ColumnDef } from '@tanstack/vue-table'
 
 const { campaigns, total, loading, error, fetchCampaigns, startCampaign, pauseCampaign, deleteCampaign } = useWaCampaigns()
+const { accounts, fetchAccounts } = useWaAccounts()
 const toast = useToast()
 
 const search = ref('')
 const statusFilter = ref('all')
+const accountFilter = ref('all')
 const page = ref(1)
+
+const accountOptions = computed(() => [
+  { label: 'All accounts', value: 'all' },
+  ...accounts.value.map(a => ({ label: a.name, value: a.id })),
+])
 
 let searchTimer: ReturnType<typeof setTimeout>
 watch(search, () => {
@@ -14,12 +21,21 @@ watch(search, () => {
   searchTimer = setTimeout(() => { page.value = 1; reload() }, 400)
 })
 watch(statusFilter, () => { page.value = 1; reload() })
+watch(accountFilter, () => { page.value = 1; reload() })
 
 async function reload() {
-  await fetchCampaigns({ status: statusFilter.value, search: search.value, page: page.value, pageSize: 50 })
+  await fetchCampaigns({
+    status: statusFilter.value,
+    search: search.value,
+    account_id: accountFilter.value !== 'all' ? accountFilter.value : undefined,
+    page: page.value,
+    pageSize: 50,
+  })
 }
 
-onMounted(reload)
+onMounted(async () => {
+  await Promise.all([fetchAccounts(), reload()])
+})
 
 const statusOptions = [
   { label: 'All statuses', value: 'all' },
@@ -126,13 +142,12 @@ function readRate(c: any) {
       {{ error }}
     </div>
 
-    <!-- Stats skeleton -->
-    <div v-if="isFirstLoad" class="grid grid-cols-4 gap-4 mb-6">
-      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="isFirstLoad" label="Loading campaigns…" />
+
+    <template v-else>
 
     <!-- Stats -->
-    <div v-else class="grid grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-4 gap-4 mb-6">
       <div
         v-for="stat in [
           { label: 'Total', count: total, color: 'text-highlighted' },
@@ -149,19 +164,15 @@ function readRate(c: any) {
     </div>
 
     <!-- Filters -->
-    <div class="flex items-center gap-3 mb-4">
+    <div class="flex items-center gap-3 mb-4 flex-wrap">
       <UInput v-model="search" icon="i-lucide-search" placeholder="Search campaigns…" class="w-64" />
       <USelect v-model="statusFilter" :items="statusOptions" value-key="value" label-key="label" class="w-44" />
+      <USelect v-model="accountFilter" :items="accountOptions" value-key="value" label-key="label" class="w-44" />
       <span class="text-sm text-muted ml-auto">{{ total }} campaign{{ total !== 1 ? 's' : '' }}</span>
     </div>
 
-    <!-- Table skeleton -->
-    <div v-if="isFirstLoad" class="space-y-2">
-      <USkeleton v-for="i in 6" :key="i" class="h-12 rounded-xl" />
-    </div>
-
     <!-- Table -->
-    <UCard v-else class="overflow-hidden p-0">
+    <UCard class="overflow-hidden p-0">
       <UTable :data="campaigns" :columns="columns" :loading="loading && campaigns.length > 0">
 
         <template #name-cell="{ row }">
@@ -248,6 +259,8 @@ function readRate(c: any) {
 
       </UTable>
     </UCard>
+
+    </template>
 
   </div>
 </template>

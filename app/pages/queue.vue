@@ -125,29 +125,28 @@ function fmtScheduled(ts: string): string {
       </UButton>
     </div>
 
+    <AppPageLoader v-if="loadingQueue && !queueItems.length" label="Loading queue…" />
+
+    <template v-else>
+
     <!-- Stats row -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <template v-if="loadingQueue && !queueItems.length">
-        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
-      </template>
-      <template v-else>
-        <UCard class="text-center">
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Total queued</p>
-          <p class="text-2xl font-semibold text-highlighted">{{ counts.total }}</p>
-        </UCard>
-        <UCard class="text-center">
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Pending</p>
-          <p class="text-2xl font-semibold text-highlighted">{{ counts.pending }}</p>
-        </UCard>
-        <UCard class="text-center">
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Overdue</p>
-          <p class="text-2xl font-semibold" :class="counts.overdue > 0 ? 'text-error-600' : 'text-muted'">{{ counts.overdue }}</p>
-        </UCard>
-        <UCard class="text-center">
-          <p class="text-xs text-muted uppercase tracking-wide mb-1">Failed jobs</p>
-          <p class="text-2xl font-semibold" :class="failedTotal > 0 ? 'text-error-600' : 'text-muted'">{{ failedTotal }}</p>
-        </UCard>
-      </template>
+      <UCard class="text-center">
+        <p class="text-xs text-muted uppercase tracking-wide mb-1">Total queued</p>
+        <p class="text-2xl font-semibold text-highlighted">{{ counts.total }}</p>
+      </UCard>
+      <UCard class="text-center">
+        <p class="text-xs text-muted uppercase tracking-wide mb-1">Pending</p>
+        <p class="text-2xl font-semibold text-highlighted">{{ counts.pending }}</p>
+      </UCard>
+      <UCard class="text-center">
+        <p class="text-xs text-muted uppercase tracking-wide mb-1">Overdue</p>
+        <p class="text-2xl font-semibold" :class="counts.overdue > 0 ? 'text-error-600' : 'text-muted'">{{ counts.overdue }}</p>
+      </UCard>
+      <UCard class="text-center">
+        <p class="text-xs text-muted uppercase tracking-wide mb-1">Failed jobs</p>
+        <p class="text-2xl font-semibold" :class="failedTotal > 0 ? 'text-error-600' : 'text-muted'">{{ failedTotal }}</p>
+      </UCard>
     </div>
 
     <!-- Workers + Job breakdown -->
@@ -247,17 +246,13 @@ function fmtScheduled(ts: string): string {
     </div>
 
     <UCard :ui="{ body: 'p-0' }">
-      <div v-if="loadingQueue && !queueItems.length" class="py-4 space-y-2 px-4">
-        <USkeleton v-for="i in 5" :key="i" class="h-10 rounded" />
-      </div>
-
-      <div v-else-if="filteredQueue.length === 0" class="py-16 text-center">
+      <div v-if="filteredQueue.length === 0" class="py-16 text-center">
         <UIcon name="i-lucide-layers" class="w-10 h-10 text-muted mx-auto mb-3" />
         <p class="text-sm font-semibold text-highlighted mb-1">Queue is empty</p>
         <p class="text-xs text-muted">No emails scheduled matching current filters.</p>
       </div>
 
-      <table v-else class="w-full text-sm">
+      <table v-else-if="filteredQueue.length > 0" class="w-full text-sm">
         <thead>
           <tr class="border-b border-default">
             <th class="text-left py-2.5 px-4 text-xs font-medium text-muted uppercase tracking-wide">Recipient</th>
@@ -299,6 +294,8 @@ function fmtScheduled(ts: string): string {
         </tbody>
       </table>
     </UCard>
+
+    </template>
 
   </div>
 </template>

@@ -107,20 +107,7 @@ const greeting = computed(() => {
       </div>
     </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-6">
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <USkeleton v-for="i in 4" :key="i" class="h-24 rounded-xl" />
-      </div>
-      <USkeleton class="h-16 rounded-xl" />
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <USkeleton class="lg:col-span-2 h-64 rounded-xl" />
-        <div class="space-y-4">
-          <USkeleton class="h-32 rounded-xl" />
-          <USkeleton class="h-32 rounded-xl" />
-        </div>
-      </div>
-    </div>
+    <AppPageLoader v-if="loading" label="Loading dashboard…" />
 
     <template v-else-if="summary">
 

@@ -176,23 +176,22 @@ const STATUS_FILTER_OPTIONS = [
       </NuxtLink>
     </div>
 
+    <AppPageLoader v-if="isFirstLoad" label="Loading campaigns…" />
+
+    <template v-else>
+
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <template v-if="isFirstLoad">
-        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
-      </template>
-      <template v-else>
-        <UCard v-for="stat in summaryStats" :key="stat.label">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
-              <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
-            </div>
-            <div>
-              <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
-              <p class="text-xs text-muted">{{ stat.label }}</p>
-            </div>
+      <UCard v-for="stat in summaryStats" :key="stat.label">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
+            <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
           </div>
-        </UCard>
-      </template>
+          <div>
+            <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
+            <p class="text-xs text-muted">{{ stat.label }}</p>
+          </div>
+        </div>
+      </UCard>
     </div>
 
     <div class="flex items-center gap-3 mb-4 flex-wrap">
@@ -303,6 +302,8 @@ const STATUS_FILTER_OPTIONS = [
       <span>Replied: <strong class="text-success-600">{{ pct(totals.replied, totals.sent) }}</strong></span>
       <span>Bounced: <strong class="text-default">{{ pct(totals.bounced, totals.sent) }}</strong></span>
     </div>
+
+    </template>
 
   </div>
 </template>

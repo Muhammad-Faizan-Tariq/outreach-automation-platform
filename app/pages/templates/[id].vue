@@ -146,10 +146,7 @@ function discard() {
       Back to templates
     </NuxtLink>
 
-    <div v-if="pageLoading" class="space-y-4">
-      <div class="h-8 w-72 bg-elevated rounded-lg animate-pulse" />
-      <div class="h-64 bg-elevated rounded-xl animate-pulse" />
-    </div>
+    <AppPageLoader v-if="pageLoading" label="Loading template…" />
 
     <div v-else-if="notFound" class="text-center py-24">
       <UIcon name="i-lucide-file-x" class="w-12 h-12 text-muted mx-auto mb-3" />

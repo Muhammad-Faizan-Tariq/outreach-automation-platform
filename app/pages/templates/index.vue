@@ -141,10 +141,7 @@ function fmtVar(v: string) { return `{{${v}}}` }
       </div>
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-      <USkeleton v-for="n in 6" :key="n" class="h-48 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading" label="Loading templates…" />
 
     <!-- Empty state -->
     <div v-else-if="filtered.length === 0" class="py-20 text-center">

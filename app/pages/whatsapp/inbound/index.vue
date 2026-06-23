@@ -2,20 +2,35 @@
 import type { ColumnDef } from '@tanstack/vue-table'
 
 const { messages, total, loading, error, fetchInbound, markHandled } = useWaInbound()
+const { accounts, fetchAccounts } = useWaAccounts()
 const toast = useToast()
 
 const handledFilter = ref<'all' | 'unhandled' | 'handled'>('all')
+const accountFilter = ref('all')
 const search = ref('')
 const page = ref(1)
 
+const accountOptions = computed(() => [
+  { label: 'All accounts', value: 'all' },
+  ...accounts.value.map(a => ({ label: a.name, value: a.id })),
+])
+
 watch(handledFilter, () => { page.value = 1; reload() })
+watch(accountFilter, () => { page.value = 1; reload() })
 
 async function reload() {
   const is_handled = handledFilter.value === 'all' ? null : handledFilter.value === 'handled'
-  await fetchInbound({ is_handled, page: page.value, pageSize: 50 })
+  await fetchInbound({
+    is_handled,
+    account_id: accountFilter.value !== 'all' ? accountFilter.value : undefined,
+    page: page.value,
+    pageSize: 50,
+  })
 }
 
-onMounted(reload)
+onMounted(async () => {
+  await Promise.all([fetchAccounts(), reload()])
+})
 
 const columns: ColumnDef<any>[] = [
   { accessorKey: 'from_phone', header: 'From' },
@@ -83,6 +98,7 @@ const unhandledCount = computed(() => messages.value.filter(m => !m.is_handled).
     <!-- Filters -->
     <div class="flex items-center gap-3 mb-4 flex-wrap">
       <UInput v-model="search" icon="i-lucide-search" placeholder="Search by phone or message…" class="w-64" />
+      <USelect v-model="accountFilter" :items="accountOptions" value-key="value" label-key="label" class="w-44" />
 
       <div class="flex rounded-lg border border-default overflow-hidden">
         <button
@@ -101,10 +117,7 @@ const unhandledCount = computed(() => messages.value.filter(m => !m.is_handled).
       <span class="text-sm text-muted ml-auto">{{ total }} message{{ total !== 1 ? 's' : '' }}</span>
     </div>
 
-    <!-- Skeleton -->
-    <div v-if="isFirstLoad" class="space-y-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-14 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="isFirstLoad" label="Loading messages…" />
 
     <!-- Table -->
     <UCard v-else class="overflow-hidden p-0">

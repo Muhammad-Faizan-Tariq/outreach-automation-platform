@@ -180,24 +180,23 @@ const STATUS_FILTER_OPTIONS = [
       </UButton>
     </div>
 
+    <AppPageLoader v-if="isFirstLoad" label="Loading inboxes…" />
+
+    <template v-else>
+
     <!-- Stats -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-      <template v-if="isFirstLoad">
-        <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
-      </template>
-      <template v-else>
-        <UCard v-for="stat in stats" :key="stat.label">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
-              <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
-            </div>
-            <div>
-              <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
-              <p class="text-xs text-muted">{{ stat.label }}</p>
-            </div>
+      <UCard v-for="stat in stats" :key="stat.label">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-elevated flex items-center justify-center shrink-0">
+            <UIcon :name="stat.icon" class="w-4.5 h-4.5" :class="stat.color" />
           </div>
-        </UCard>
-      </template>
+          <div>
+            <p class="text-xl font-semibold tabular-nums" :class="stat.color">{{ stat.value }}</p>
+            <p class="text-xs text-muted">{{ stat.label }}</p>
+          </div>
+        </div>
+      </UCard>
     </div>
 
     <!-- Filters -->
@@ -300,6 +299,8 @@ const STATUS_FILTER_OPTIONS = [
     <div v-if="total > pageSize" class="flex justify-center mt-6">
       <UPagination v-model:page="page" :total="total" :page-size="pageSize" />
     </div>
+
+    </template>
 
   </div>
 </template>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 const { mediaList, total, loading, error, fetchMedia, uploadMedia, deleteMedia, formatBytes } = useWaMedia()
+const { accounts, fetchAccounts } = useWaAccounts()
 const toast = useToast()
 
 const typeFilter = ref('all')
+const accountFilter = ref('all')
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -14,13 +16,25 @@ const typeOptions = [
   { label: 'Audio', value: 'audio' },
 ]
 
+const accountOptions = computed(() => [
+  { label: 'All accounts', value: 'all' },
+  ...accounts.value.map(a => ({ label: a.name, value: a.id })),
+])
+
 watch(typeFilter, () => reload())
+watch(accountFilter, () => reload())
 
 async function reload() {
-  await fetchMedia({ media_type: typeFilter.value, pageSize: 100 })
+  await fetchMedia({
+    media_type: typeFilter.value,
+    account_id: accountFilter.value !== 'all' ? accountFilter.value : undefined,
+    pageSize: 100,
+  })
 }
 
-onMounted(reload)
+onMounted(async () => {
+  await Promise.all([fetchAccounts(), reload()])
+})
 
 function typeIcon(type: string) {
   const map: Record<string, string> = {
@@ -96,15 +110,13 @@ const isFirstLoad = computed(() => loading.value && mediaList.value.length === 0
     </div>
 
     <!-- Filters -->
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-3 mb-6 flex-wrap">
       <USelect v-model="typeFilter" :items="typeOptions" value-key="value" label-key="label" class="w-44" />
+      <USelect v-model="accountFilter" :items="accountOptions" value-key="value" label-key="label" class="w-44" />
       <span class="text-sm text-muted ml-auto">{{ total }} file{{ total !== 1 ? 's' : '' }}</span>
     </div>
 
-    <!-- Skeleton -->
-    <div v-if="isFirstLoad" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-      <USkeleton v-for="i in 10" :key="i" class="h-36 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="isFirstLoad" label="Loading media…" />
 
     <!-- Empty -->
     <div v-else-if="mediaList.length === 0" class="text-center py-20 text-muted">

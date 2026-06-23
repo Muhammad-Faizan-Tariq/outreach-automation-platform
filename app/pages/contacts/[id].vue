@@ -72,11 +72,7 @@ function fmtNum(n: string | null, currency: string) {
       Back to contacts
     </NuxtLink>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-4">
-      <div class="h-8 w-64 bg-elevated rounded-lg animate-pulse" />
-      <div class="h-48 bg-elevated rounded-xl animate-pulse" />
-    </div>
+    <AppPageLoader v-if="loading" label="Loading contact…" />
 
     <!-- Not found -->
     <div v-else-if="notFound" class="text-center py-24">

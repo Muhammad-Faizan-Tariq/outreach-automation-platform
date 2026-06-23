@@ -174,10 +174,7 @@ function importStatusColor(s: string): BadgeColor {
       />
     </div>
 
-    <!-- Loading skeleton (first load only) -->
-    <div v-if="loading && !contacts.length" class="space-y-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-12 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading && !contacts.length" label="Loading contacts…" />
 
     <!-- Table -->
     <UCard v-else :ui="{ body: 'p-0' }">

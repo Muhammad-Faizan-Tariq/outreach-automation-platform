@@ -1,5 +1,6 @@
 export interface WATemplate {
   id: string
+  wa_phone_number_id: string | null
   alots_template_id: string | null
   name: string
   language: string
@@ -19,6 +20,7 @@ export interface WATemplate {
 }
 
 export interface WATemplateCreate {
+  wa_phone_number_id: string
   name: string
   language: string
   category: string
@@ -114,8 +116,16 @@ export const useWaTemplates = () => {
     })
   }
 
-  const importFromAlots = async (): Promise<{ imported: number; skipped: number; failed: number; total_in_alots: number }> => {
+  const importFromAlots = async (phoneNumberId: string): Promise<{ imported: number; skipped: number; failed: number; total_in_alots: number }> => {
     return $fetch(`${apiBase}/wa/templates/import-from-alots`, {
+      method: 'POST',
+      headers: authHeaders.value,
+      body: { wa_phone_number_id: phoneNumberId },
+    })
+  }
+
+  const importAllFromAlots = async (): Promise<{ imported: number; skipped: number; failed: number; phones_scanned: number }> => {
+    return $fetch(`${apiBase}/wa/templates/import-all`, {
       method: 'POST',
       headers: authHeaders.value,
     })
@@ -134,5 +144,6 @@ export const useWaTemplates = () => {
     syncTemplate,
     syncAll,
     importFromAlots,
+    importAllFromAlots,
   }
 }

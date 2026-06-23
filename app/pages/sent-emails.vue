@@ -185,10 +185,7 @@ const STEP_OPTIONS = [
       />
     </div>
 
-    <!-- Loading skeleton (first load only) -->
-    <div v-if="loading && !sentEmails.length" class="space-y-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-12 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading && !sentEmails.length" label="Loading sent emails…" />
 
     <!-- Table -->
     <UCard v-else :ui="{ body: 'p-0' }">

@@ -33,13 +33,16 @@ export const useWaAnalytics = () => {
   const loading = ref(true)
   const error = ref<string | null>(null)
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (params: { account_id?: string } = {}) => {
     loading.value = true
     error.value = null
     try {
+      const q = new URLSearchParams()
+      if (params.account_id) q.set('account_id', params.account_id)
+      const qs = q.toString() ? '?' + q.toString() : ''
       const [sum, campaigns] = await Promise.all([
-        $fetch<WAAnalyticsSummary>(`${apiBase}/wa/analytics`, { headers: authHeaders.value }),
-        $fetch<WACampaignAnalytics[]>(`${apiBase}/wa/analytics/campaigns`, { headers: authHeaders.value }),
+        $fetch<WAAnalyticsSummary>(`${apiBase}/wa/analytics${qs}`, { headers: authHeaders.value }),
+        $fetch<WACampaignAnalytics[]>(`${apiBase}/wa/analytics/campaigns${qs}`, { headers: authHeaders.value }),
       ])
       summary.value = sum
       campaignStats.value = campaigns
@@ -52,11 +55,13 @@ export const useWaAnalytics = () => {
     }
   }
 
-  const fetchWallet = async () => {
+  const fetchWallet = async (phoneNumberId?: string) => {
+    if (!phoneNumberId) { walletBalance.value = null; return }
     try {
-      const res = await $fetch<{ wallet_balance: number }>(`${apiBase}/wa/wallet/balance`, {
-        headers: authHeaders.value,
-      })
+      const res = await $fetch<{ wallet_balance: number }>(
+        `${apiBase}/wa/wallet/balance?phone_number_id=${phoneNumberId}`,
+        { headers: authHeaders.value },
+      )
       walletBalance.value = res.wallet_balance
     }
     catch {
@@ -64,9 +69,13 @@ export const useWaAnalytics = () => {
     }
   }
 
-  const fetchChannels = async () => {
+  const fetchChannels = async (phoneNumberId?: string) => {
+    if (!phoneNumberId) { channels.value = []; return }
     try {
-      const res = await $fetch<any[]>(`${apiBase}/wa/channels`, { headers: authHeaders.value })
+      const res = await $fetch<any[]>(
+        `${apiBase}/wa/channels?phone_number_id=${phoneNumberId}`,
+        { headers: authHeaders.value },
+      )
       channels.value = Array.isArray(res) ? res : []
     }
     catch {

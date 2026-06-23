@@ -279,20 +279,7 @@ function rateColor(r: number) {
       </div>
     </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-4">
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <USkeleton v-for="i in 5" :key="i" class="h-20 rounded-xl" />
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <USkeleton class="h-56 rounded-xl" />
-        <USkeleton class="h-56 rounded-xl" />
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <USkeleton class="lg:col-span-3 h-52 rounded-xl" />
-        <USkeleton class="lg:col-span-2 h-52 rounded-xl" />
-      </div>
-    </div>
+    <AppPageLoader v-if="loading" label="Loading analytics…" />
 
     <template v-else>
 

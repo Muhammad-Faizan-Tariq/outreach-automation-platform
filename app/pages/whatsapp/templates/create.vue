@@ -2,6 +2,27 @@
 const router = useRouter()
 const toast = useToast()
 const { createTemplate } = useWaTemplates()
+const { phones, fetchAllPhones } = useWaPhoneNumbers()
+const { accounts } = useWaAccounts()
+const { fetchAccounts } = useWaAccounts()
+
+onMounted(() => {
+  fetchAllPhones()
+  fetchAccounts()
+})
+
+const accountMap = computed(() =>
+  Object.fromEntries(accounts.value.map(a => [a.id, a.name]))
+)
+
+const phoneOptions = computed(() =>
+  phones.value
+    .filter(p => p.is_active)
+    .map(p => ({
+      label: `${accountMap.value[p.wa_account_id] ?? 'Unknown'} — ${p.display_name || p.phone_number || p.phone_number_id}`,
+      value: p.id,
+    }))
+)
 
 type HeaderType = 'none' | 'text' | 'image' | 'document'
 type ButtonType = 'quick_reply' | 'url'
@@ -42,6 +63,7 @@ const SAMPLE_VALUES: Record<string, string> = {
 }
 
 const form = reactive({
+  wa_phone_number_id: '' as string,
   name: '',
   category: 'marketing' as 'marketing' | 'utility' | 'authentication',
   language: 'en' as 'en' | 'ar',
@@ -112,6 +134,7 @@ function removeButton(id: string) {
 }
 
 const canSave = computed(() =>
+  form.wa_phone_number_id.length > 0 &&
   form.name.trim().length > 0 &&
   /^[a-z0-9_]+$/.test(form.name) &&
   form.body.trim().length > 0 &&
@@ -124,6 +147,7 @@ async function saveTemplate(submit: boolean) {
   try {
     const headerFormat = form.headerType === 'none' ? null : form.headerType.toUpperCase()
     await createTemplate({
+      wa_phone_number_id: form.wa_phone_number_id,
       name: form.name,
       language: form.language,
       category: form.category.toUpperCase(),
@@ -180,6 +204,24 @@ const bodyLength = computed(() => form.body.length)
 
       <!-- Left: form (3 cols) -->
       <div class="xl:col-span-3 space-y-5">
+
+        <!-- Phone number selector -->
+        <UCard class="space-y-4">
+          <h3 class="text-sm font-semibold text-highlighted">Send from (phone number) <span class="text-error-500">*</span></h3>
+          <div>
+            <USelect
+              v-model="form.wa_phone_number_id"
+              :items="phoneOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Select phone number / WABA…"
+            />
+            <p v-if="phoneOptions.length === 0" class="text-xs text-warning-600 mt-1">
+              No active phone numbers found.
+              <NuxtLink to="/whatsapp/accounts" class="underline">Add phone numbers first</NuxtLink>
+            </p>
+          </div>
+        </UCard>
 
         <!-- Basic info -->
         <UCard class="space-y-4">

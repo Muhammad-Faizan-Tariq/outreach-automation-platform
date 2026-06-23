@@ -21,6 +21,7 @@ export const useWaMedia = () => {
 
   const fetchMedia = async (params: {
     media_type?: string
+    account_id?: string
     page?: number
     pageSize?: number
   } = {}) => {
@@ -29,6 +30,7 @@ export const useWaMedia = () => {
     try {
       const q = new URLSearchParams()
       if (params.media_type && params.media_type !== 'all') q.set('media_type', params.media_type)
+      if (params.account_id) q.set('account_id', params.account_id)
       if (params.page) q.set('page', String(params.page))
       if (params.pageSize) q.set('page_size', String(params.pageSize))
       const qs = q.toString()

@@ -24,6 +24,7 @@ export const useWaInbound = () => {
   const fetchInbound = async (params: {
     is_handled?: boolean | null
     search?: string
+    account_id?: string
     page?: number
     pageSize?: number
   } = {}) => {
@@ -34,6 +35,7 @@ export const useWaInbound = () => {
       if (params.is_handled !== null && params.is_handled !== undefined)
         q.set('is_handled', String(params.is_handled))
       if (params.search) q.set('search', params.search)
+      if (params.account_id) q.set('account_id', params.account_id)
       if (params.page) q.set('page', String(params.page))
       if (params.pageSize) q.set('page_size', String(params.pageSize))
       const qs = q.toString()

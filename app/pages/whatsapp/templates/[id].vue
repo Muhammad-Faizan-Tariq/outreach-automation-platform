@@ -133,12 +133,7 @@ async function saveEdit() {
       Back to templates
     </NuxtLink>
 
-    <!-- Loading -->
-    <div v-if="loading" class="space-y-4">
-      <USkeleton class="h-10 w-72 rounded-xl" />
-      <USkeleton class="h-5 w-48 rounded-xl" />
-      <USkeleton class="h-40 rounded-xl" />
-    </div>
+    <AppPageLoader v-if="loading" label="Loading template…" />
 
     <!-- Not found -->
     <div v-else-if="notFound" class="text-center py-24">
