@@ -7,6 +7,7 @@ const toast = useToast()
 const form = reactive({ email: '', password: '' })
 const loading = ref(false)
 const errorMsg = ref('')
+const showPassword = ref(false)
 
 const submit = async () => {
   loading.value = true
@@ -28,8 +29,12 @@ const submit = async () => {
   <div class="w-full max-w-sm">
     <!-- Logo + heading -->
     <div class="text-center mb-8">
-      <AppLogo class="h-7 w-auto text-primary mx-auto mb-5" />
-      <h1 class="text-2xl font-semibold text-highlighted">Sign in</h1>
+      <div class="flex justify-center mb-5">
+        <AppLogo />
+      </div>
+      <h1 class="text-2xl font-semibold text-highlighted">
+        Sign in
+      </h1>
       <p class="mt-1 text-sm text-muted">
         Welcome back to your outreach platform
       </p>
@@ -59,12 +64,24 @@ const submit = async () => {
           <UInput
             id="password"
             v-model="form.password"
-            type="password"
+            :type="showPassword ? 'text' : 'password'"
             placeholder="••••••••"
             autocomplete="current-password"
             required
             class="w-full"
-          />
+            :ui="{ trailing: 'pe-1' }"
+          >
+            <template #trailing>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </UInput>
         </div>
 
         <UAlert
