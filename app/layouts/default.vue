@@ -42,7 +42,6 @@ const navItems: NavItem[] = [
   { label: 'WA Analytics', icon: 'i-lucide-bar-chart-3', to: '/whatsapp/analytics' },
 
   { label: 'WA Flows', icon: 'i-lucide-git-branch', to: '/automation/flows/whatsapp', section: 'Automation' },
-  { label: 'Email Flows', icon: 'i-lucide-git-branch-plus', to: '/automation/flows/email' },
 
   { label: 'Users', icon: 'i-lucide-users-round', to: '/settings/users', section: 'Settings' },
   { label: 'Suppression', icon: 'i-lucide-shield-x', to: '/settings/suppression' },

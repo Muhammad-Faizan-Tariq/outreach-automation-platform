@@ -4,6 +4,17 @@ useHead({
   link: [{ rel: 'icon', href: '/favicon.ico' }],
   htmlAttrs: { lang: 'en' }
 })
+
+// Vue Flow uses internal DOM fragments that can produce null-ref errors during
+// component teardown. This is a known upstream bug — suppress it globally.
+const nuxtApp = useNuxtApp()
+nuxtApp.vueApp.config.errorHandler = (err, _vm, _info) => {
+  if (err instanceof TypeError) {
+    const msg = err.message
+    if (msg.includes('nextSibling') || msg.includes("'type'")) return
+  }
+  console.error(err)
+}
 </script>
 
 <template>

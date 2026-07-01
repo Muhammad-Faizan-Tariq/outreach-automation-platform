@@ -78,6 +78,18 @@ const paletteItems = [
   { type: 'action', label: 'Action', icon: 'i-lucide-tag', color: 'text-blue-600', bg: 'bg-blue-500/10', border: 'border-blue-400' },
 ]
 
+function addNodeToCanvas(type: string, position?: { x: number; y: number }) {
+  const last = nodes.value[nodes.value.length - 1]
+  const pos = position ?? (last ? { x: last.position.x, y: last.position.y + 170 } : { x: 260, y: 220 })
+  const defaults: Record<string, Record<string, unknown>> = {
+    message: { label: 'Send Message', template: '' },
+    wait: { label: '2 days', delay: 2, unit: 'days' },
+    condition: { label: 'Condition' },
+    action: { label: 'Mark Qualified' },
+  }
+  addNodes([{ id: `node-${nodeIdCounter++}`, type, position: pos, data: defaults[type] ? { ...defaults[type] } : { label: type } }])
+}
+
 function onDragStart(event: DragEvent, type: string) {
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
@@ -102,7 +114,7 @@ function onDrop(event: DragEvent) {
     y: event.clientY,
   })
 
-  const defaultData: Record<string, any> = {
+  const defaultData: Record<string, Record<string, unknown>> = {
     message: { label: 'Send Message', template: '' },
     wait: { label: '2 days', delay: 2, unit: 'days' },
     condition: { label: 'Condition' },
@@ -113,7 +125,7 @@ function onDrop(event: DragEvent) {
     id: `node-${nodeIdCounter++}`,
     type,
     position,
-    data: defaultData[type] ?? { label: type },
+    data: defaultData[type] ? { ...defaultData[type] } : { label: type },
   }])
 }
 
@@ -140,6 +152,11 @@ async function saveFlow() {
   await new Promise(r => setTimeout(r, 600))
   saving.value = false
 }
+
+onBeforeUnmount(() => {
+  nodes.value = []
+  edges.value = []
+})
 </script>
 
 <template>
@@ -191,8 +208,9 @@ async function saveFlow() {
             v-for="item in paletteItems"
             :key="item.type"
             draggable="true"
-            class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-grab active:cursor-grabbing bg-elevated hover:border-primary/50 transition-colors select-none"
+            class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer bg-elevated hover:border-primary/50 transition-colors select-none"
             :class="item.border"
+            @click="addNodeToCanvas(item.type)"
             @dragstart="onDragStart($event, item.type)"
           >
             <div

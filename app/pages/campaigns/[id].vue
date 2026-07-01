@@ -1,4 +1,17 @@
 <script setup lang="ts">
+import { VueFlow } from '@vue-flow/core'
+import { Background } from '@vue-flow/background'
+import { Controls } from '@vue-flow/controls'
+import '@vue-flow/core/dist/style.css'
+import '@vue-flow/core/dist/theme-default.css'
+import '@vue-flow/controls/dist/style.css'
+
+import TriggerNode from '~/components/automation/TriggerNode.vue'
+import MessageNode from '~/components/automation/MessageNode.vue'
+import WaitNode from '~/components/automation/WaitNode.vue'
+import ConditionNode from '~/components/automation/ConditionNode.vue'
+import ActionNode from '~/components/automation/ActionNode.vue'
+
 import type { Campaign, CampaignTemplateStep } from '~/composables/useCampaigns'
 import type { EmailTemplate } from '~/composables/useTemplates'
 
@@ -63,6 +76,72 @@ const progress = computed(() => {
   const denom = campaign.value.actual_audience_size ?? campaign.value.total_contacts
   if (!denom) return 0
   return Math.min(100, Math.round((campaign.value.total_sent / denom) * 100))
+})
+
+// ── Vue Flow — read-only sequence canvas ─────────────────────────────────
+const nodeTypes = {
+  trigger: TriggerNode,
+  message: MessageNode,
+  wait: WaitNode,
+  condition: ConditionNode,
+  action: ActionNode,
+}
+
+const flowNodes = computed(() => {
+  const steps = templateSteps.value
+  if (!steps.length) return []
+  const ns: any[] = []
+  let y = 40
+
+  ns.push({ id: 'n-trigger', type: 'trigger', position: { x: 260, y }, data: { label: 'Lead Enrolled' } })
+  y += 140
+
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]
+    const tpl = templateDetails.value.get(step.template_id)
+    const label = tpl?.subject ?? `Step ${step.step_number}`
+
+    ns.push({ id: `n-msg-${i}`, type: 'message', position: { x: 210, y }, data: { label, template: step.template_id } })
+    y += 140
+
+    const condY = y
+    ns.push({ id: `n-cond-${i}`, type: 'condition', position: { x: 180, y: condY }, data: { label: 'Did they reply?' } })
+    y += 150
+
+    ns.push({ id: `n-qual-${i}`, type: 'action', position: { x: 60, y }, data: { label: 'Mark Qualified' } })
+
+    if (i < steps.length - 1) {
+      const nextDelay = steps[i + 1]!.delay_days
+      ns.push({ id: `n-wait-${i}`, type: 'wait', position: { x: 330, y }, data: { label: `${nextDelay} day${nextDelay !== 1 ? 's' : ''}`, delay: nextDelay, unit: 'days' } })
+      y += 150
+    }
+    else {
+      ns.push({ id: 'n-dead', type: 'action', position: { x: 360, y }, data: { label: 'Mark as Dead' } })
+      y += 150
+    }
+  }
+  return ns
+})
+
+const flowEdges = computed(() => {
+  const steps = templateSteps.value
+  if (!steps.length) return []
+  const es: any[] = []
+
+  es.push({ id: 'e-t0', source: 'n-trigger', target: 'n-msg-0', animated: true })
+
+  for (let i = 0; i < steps.length; i++) {
+    es.push({ id: `e-mc-${i}`, source: `n-msg-${i}`, target: `n-cond-${i}`, animated: true })
+    es.push({ id: `e-yes-${i}`, source: `n-cond-${i}`, sourceHandle: 'yes', target: `n-qual-${i}`, label: 'Yes', style: { stroke: '#22c55e' }, labelStyle: { fill: '#22c55e', fontWeight: 600 } })
+    if (i < steps.length - 1) {
+      es.push({ id: `e-no-${i}`, source: `n-cond-${i}`, sourceHandle: 'no', target: `n-wait-${i}`, label: 'No', style: { stroke: '#ef4444' }, labelStyle: { fill: '#ef4444', fontWeight: 600 } })
+      es.push({ id: `e-wm-${i}`, source: `n-wait-${i}`, target: `n-msg-${i + 1}`, animated: true })
+    }
+    else {
+      es.push({ id: 'e-dead', source: `n-cond-${i}`, sourceHandle: 'no', target: 'n-dead', label: 'No', style: { stroke: '#ef4444' }, labelStyle: { fill: '#ef4444', fontWeight: 600 } })
+    }
+  }
+  return es
 })
 
 // ── status helpers ───────────────────────────────────────────────────────
@@ -350,48 +429,24 @@ async function saveEdit() {
       <template v-else-if="activeTab === 'sequence'">
         <div v-if="templateSteps.length === 0" class="py-16 text-center">
           <UIcon name="i-lucide-git-branch" class="w-10 h-10 text-muted mx-auto mb-3" />
-          <p class="text-sm font-semibold text-highlighted mb-1">No template steps</p>
-          <p class="text-xs text-muted">This campaign has no email sequence configured.</p>
+          <p class="text-sm font-semibold text-highlighted mb-1">No sequence configured</p>
+          <p class="text-xs text-muted">This campaign has no email sequence yet.</p>
         </div>
-        <div v-else class="space-y-3">
-          <div
-            v-for="(step, i) in templateSteps"
-            :key="step.template_id"
-            class="flex gap-4"
+        <div v-else class="h-170 rounded-xl overflow-hidden border border-default">
+          <VueFlow
+            :nodes="flowNodes"
+            :edges="flowEdges"
+            :node-types="nodeTypes"
+            fit-view-on-init
+            :nodes-draggable="false"
+            :nodes-connectable="false"
+            :elements-selectable="false"
+            :min-zoom="0.25"
+            :max-zoom="1.5"
           >
-            <div class="flex flex-col items-center">
-              <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">
-                {{ step.step_number }}
-              </div>
-              <div v-if="i < templateSteps.length - 1" class="w-px flex-1 bg-border-default mt-1 mb-1 min-h-4" />
-            </div>
-            <UCard class="flex-1 mb-3">
-              <div class="flex items-start justify-between gap-4">
-                <div class="flex-1">
-                  <p class="text-xs text-muted uppercase tracking-wide font-medium mb-0.5">{{ stepLabel(step.step_number) }}</p>
-                  <p class="text-sm font-semibold text-highlighted">
-                    {{ templateDetails.get(step.template_id)?.subject ?? 'Loading…' }}
-                  </p>
-                  <p class="text-xs text-muted mt-0.5">
-                    <span v-if="step.step_number === 1">Sent immediately when contact enters campaign</span>
-                    <span v-else>Sent {{ step.delay_days }}d after Step {{ step.step_number - 1 }} (if no reply)</span>
-                  </p>
-                </div>
-                <NuxtLink v-if="templateDetails.has(step.template_id)" :to="`/templates/${step.template_id}`">
-                  <UButton size="xs" color="neutral" variant="subtle" icon="i-lucide-external-link">View</UButton>
-                </NuxtLink>
-              </div>
-              <div v-if="templateDetails.get(step.template_id)?.required_variables.length" class="flex flex-wrap gap-1 mt-3">
-                <span
-                  v-for="v in templateDetails.get(step.template_id)!.required_variables"
-                  :key="v"
-                  class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-xs font-mono"
-                >
-                  {{ fmtVar(v) }}
-                </span>
-              </div>
-            </UCard>
-          </div>
+            <Background pattern-color="#374151" :gap="20" :size="1" />
+            <Controls />
+          </VueFlow>
         </div>
       </template>
 
